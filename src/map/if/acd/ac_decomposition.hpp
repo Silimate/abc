@@ -40,6 +40,11 @@
 #include "kitty_operators.hpp"
 #include "kitty_static_tt.hpp"
 
+#ifdef _MSC_VER
+#  include <intrin.h>
+#  define __builtin_popcount __popcnt
+#endif
+
 ABC_NAMESPACE_CXX_HEADER_START
 
 namespace acd
@@ -459,7 +464,7 @@ private:
     if ( free_set_size == offset )
     {
       best_cost = fn( tt );
-      return { tt, permutations, best_cost };
+      return std::make_tuple( tt, permutations, best_cost );
     }
 
     /* works up to 16 input truth tables */
