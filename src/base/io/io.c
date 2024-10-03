@@ -59,6 +59,7 @@ static int IoCommandReadStatus  ( Abc_Frame_t * pAbc, int argc, char **argv );
 static int IoCommandReadGig     ( Abc_Frame_t * pAbc, int argc, char **argv );
 static int IoCommandReadJson    ( Abc_Frame_t * pAbc, int argc, char **argv );
 static int IoCommandReadSF      ( Abc_Frame_t * pAbc, int argc, char **argv );
+static int IoCommandReadRom     ( Abc_Frame_t * pAbc, int argc, char **argv );
 
 static int IoCommandWrite       ( Abc_Frame_t * pAbc, int argc, char **argv );
 static int IoCommandWriteHie    ( Abc_Frame_t * pAbc, int argc, char **argv );
@@ -133,6 +134,7 @@ void Io_Init( Abc_Frame_t * pAbc )
     Cmd_CommandAdd( pAbc, "I/O", "&read_gig",     IoCommandReadGig,      0 );
     Cmd_CommandAdd( pAbc, "I/O", "read_json",     IoCommandReadJson,     0 );
     Cmd_CommandAdd( pAbc, "I/O", "read_sf",       IoCommandReadSF,       0 );
+    Cmd_CommandAdd( pAbc, "I/O", "read_rom",      IoCommandReadRom,      1 );
 
     Cmd_CommandAdd( pAbc, "I/O", "write",         IoCommandWrite,        0 );
     Cmd_CommandAdd( pAbc, "I/O", "write_hie",     IoCommandWriteHie,     0 );
@@ -1938,6 +1940,73 @@ usage:
   SeeAlso     []
 
 ***********************************************************************/
+int IoCommandReadRom( Abc_Frame_t * pAbc, int argc, char ** argv )
+{
+    extern void Io_TransformROM2PLA( char * pNameIn, char * pNameOut );
+
+    Abc_Ntk_t * pNtk;
+    FILE * pFile;
+    char * pFileName, * pFileTemp = "_temp_rom_.pla";
+    int c;
+
+    Extra_UtilGetoptReset();
+    while ( ( c = Extra_UtilGetopt( argc, argv, "h" ) ) != EOF )
+    {
+        switch ( c )
+        {
+            case 'h':
+                goto usage;
+            default:
+                goto usage;
+        }
+    }
+    if ( argc != globalUtilOptind + 1 )
+    {
+        goto usage;
+    }
+
+    // get the input file name
+    pFileName = argv[globalUtilOptind];
+    if ( (pFile = fopen( pFileName, "r" )) == NULL )
+    {
+        fprintf( pAbc->Err, "Cannot open input file \"%s\". \n", pFileName );
+        return 1;
+    }
+    fclose( pFile );
+    Io_TransformROM2PLA( pFileName, pFileTemp );
+    pNtk = Io_Read( pFileTemp, IO_FILE_PLA, 1, 0 );
+    //unlink( pFileTemp );
+    if ( pNtk == NULL )
+        return 1;
+    ABC_FREE( pNtk->pName );
+    pNtk->pName = Extra_FileNameGeneric( pFileName );
+    ABC_FREE( pNtk->pSpec );
+    pNtk->pSpec = Abc_UtilStrsav( pFileName );
+    // replace the current network
+    Abc_FrameReplaceCurrentNetwork( pAbc, pNtk );
+    Abc_FrameClearVerifStatus( pAbc );
+
+    return 0;
+
+usage:
+    fprintf( pAbc->Err, "usage: read_rom [-h] <file>\n" );
+    fprintf( pAbc->Err, "\t         reads ROM file\n" );
+    fprintf( pAbc->Err, "\t-h     : prints the command summary\n" );
+    fprintf( pAbc->Err, "\tfile   : the name of a file to read\n" );
+    return 1;
+}
+
+/**Function*************************************************************
+
+  Synopsis    []
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
 int IoCommandWrite( Abc_Frame_t * pAbc, int argc, char **argv )
 {
     char Command[1000];
@@ -3530,13 +3599,13 @@ usage:
 ***********************************************************************/
 int IoCommandWriteVerilog( Abc_Frame_t * pAbc, int argc, char **argv )
 {
-    extern void Io_WriteVerilogLut( Abc_Ntk_t * pNtk, char * pFileName, int nLutSize, int fFixed, int fNoModules );
+    extern void Io_WriteVerilogLut( Abc_Ntk_t * pNtk, char * pFileName, int nLutSize, int fFixed, int fNoModules, int fNewInterface );
     char * pFileName;
-    int c, fFixed = 0, fOnlyAnds = 0, fNoModules = 0;
+    int c, fFixed = 0, fOnlyAnds = 0, fNoModules = 0, fNewInterface = 0;
     int nLutSize = -1;
 
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "Kfamh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "Kfamnh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -3560,6 +3629,9 @@ int IoCommandWriteVerilog( Abc_Frame_t * pAbc, int argc, char **argv )
             case 'm':
                 fNoModules ^= 1;
                 break;
+            case 'n':
+                fNewInterface ^= 1;
+                break;                
             case 'h':
                 goto usage;
             default:
@@ -3578,27 +3650,26 @@ int IoCommandWriteVerilog( Abc_Frame_t * pAbc, int argc, char **argv )
     // get the output file name
     pFileName = argv[globalUtilOptind];
     // call the corresponding file writer
-    if ( fOnlyAnds )
+    if ( nLutSize >= 2 && nLutSize <= 6 )
+        Io_WriteVerilogLut( pAbc->pNtkCur, pFileName, nLutSize, fFixed, fNoModules, fNewInterface );
+    else
     {
         Abc_Ntk_t * pNtkTemp = Abc_NtkToNetlist( pAbc->pNtkCur );
         if ( !Abc_NtkHasAig(pNtkTemp) && !Abc_NtkHasMapping(pNtkTemp) )
             Abc_NtkToAig( pNtkTemp );
-        Io_WriteVerilog( pNtkTemp, pFileName, 1 );
+        Io_WriteVerilog( pNtkTemp, pFileName, fOnlyAnds, fNewInterface );
         Abc_NtkDelete( pNtkTemp );
     }
-    else if ( nLutSize >= 2 && nLutSize <= 6 )
-        Io_WriteVerilogLut( pAbc->pNtkCur, pFileName, nLutSize, fFixed, fNoModules );
-    else
-        Io_Write( pAbc->pNtkCur, pFileName, IO_FILE_VERILOG );
     return 0;
 
 usage:
-    fprintf( pAbc->Err, "usage: write_verilog [-K num] [-famh] <file>\n" );
+    fprintf( pAbc->Err, "usage: write_verilog [-K num] [-famnh] <file>\n" );
     fprintf( pAbc->Err, "\t         writes the current network in Verilog format\n" );
     fprintf( pAbc->Err, "\t-K num : write the network using instances of K-LUTs (2 <= K <= 6) [default = not used]\n" );
     fprintf( pAbc->Err, "\t-f     : toggle using fixed format [default = %s]\n", fFixed? "yes":"no" );
     fprintf( pAbc->Err, "\t-a     : toggle writing expressions with only ANDs (without XORs and MUXes) [default = %s]\n", fOnlyAnds? "yes":"no" );
     fprintf( pAbc->Err, "\t-m     : toggle writing additional modules [default = %s]\n", !fNoModules? "yes":"no" );
+    fprintf( pAbc->Err, "\t-n     : toggle writing generic PO names and assign-statements [default = %s]\n", fNewInterface? "yes":"no" );
     fprintf( pAbc->Err, "\t-h     : print the help massage\n" );
     fprintf( pAbc->Err, "\tfile   : the name of the file to write\n" );
     return 1;
