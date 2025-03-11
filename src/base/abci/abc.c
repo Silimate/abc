@@ -56155,9 +56155,6 @@ int Abc_CommandAbc9Test( Abc_Frame_t * pAbc, int argc, char ** argv )
         }
     }
     
-    extern void cadical_solver_test();
-    cadical_solver_test();
-    return 0;
     extern void kissat_solver_test();
     kissat_solver_test();
     return 0;
