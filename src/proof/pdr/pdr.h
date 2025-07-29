@@ -86,6 +86,7 @@ struct Pdr_Par_t_
     Vec_Int_t * vOutMap;  // in the multi-output mode, contains status for each PO (0 = sat; 1 = unsat; negative = undecided)
     char * pInvFileName;  // invariable file name
     char * pCexFilePrefix;  // CEX output prefix
+    int fBlocking;        // clause pushing with blocking
 };
 
 ////////////////////////////////////////////////////////////////////////

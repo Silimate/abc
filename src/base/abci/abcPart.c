@@ -1219,7 +1219,7 @@ void Abc_NtkFraigPartitionedTime( Abc_Ntk_t * pNtk, void * pParams )
 ***********************************************************************/
 Vec_Int_t * Abc_NtkStochSynthesis( Vec_Ptr_t * vWins, char * pScript )
 {
-    Vec_Int_t * vGains = Vec_IntStart( Vec_PtrSize(vWins) );
+    Vec_Int_t * vGains = Vec_IntStartFull( Vec_PtrSize(vWins) );
     Abc_Ntk_t * pNtk, * pNew; int i;
     Vec_PtrForEachEntry( Abc_Ntk_t *, vWins, pNtk, i )
     {
@@ -1248,7 +1248,7 @@ Vec_Int_t * Abc_NtkStochSynthesis( Vec_Ptr_t * vWins, char * pScript )
         {
             double Before = Abc_NtkGetMappedArea(pNtk);
             double After  = Abc_NtkGetMappedArea(pNew);
-            if ( After < Before )
+            if ( Before >= After )
             {
                 Vec_IntWriteEntry( vGains, i, (int)(Before - After) );
                 Abc_NtkDelete( pNtk );
@@ -1257,7 +1257,7 @@ Vec_Int_t * Abc_NtkStochSynthesis( Vec_Ptr_t * vWins, char * pScript )
         }
         else
         {
-            if ( Abc_NtkNodeNum(pNew) < Abc_NtkNodeNum(pNtk) )
+            if ( Abc_NtkNodeNum(pNtk) >= Abc_NtkNodeNum(pNew) )
             {
                 Vec_IntWriteEntry( vGains, i, Abc_NtkNodeNum(pNtk) - Abc_NtkNodeNum(pNew) );
                 Abc_NtkDelete( pNtk );
@@ -1320,7 +1320,7 @@ Abc_Ntk_t * Abc_NtkStochProcessOne( Abc_Ntk_t * p, char * pScript0, int Rand, in
     ABC_FREE( pScript );
     pNew = Abc_NtkReadFromFile( FileName );
     unlink( FileName );
-    if ( pNew && Abc_NtkGetMappedArea(pNew) < Abc_NtkGetMappedArea(p) ) {
+    if ( pNew && Abc_NtkGetMappedArea(pNew) <= Abc_NtkGetMappedArea(p) ) {
         pNew = Abc_NtkDupDfs( pTemp = pNew );
         Abc_NtkDelete( pTemp );
         return pNew;
@@ -1343,7 +1343,7 @@ Vec_Int_t * Abc_NtkStochProcess( Vec_Ptr_t * vWins, char * pScript, int nProcs, 
     if ( nProcs <= 2 ) {
         return Abc_NtkStochSynthesis( vWins, pScript );
     }
-    Vec_Int_t * vGains = Vec_IntStart( Vec_PtrSize(vWins) );
+    Vec_Int_t * vGains = Vec_IntStartFull( Vec_PtrSize(vWins) );
     StochSynData_t * pData = ABC_CALLOC( StochSynData_t, Vec_PtrSize(vWins) );
     Vec_Ptr_t * vData = Vec_PtrAlloc( Vec_PtrSize(vWins) ); 
     Abc_Ntk_t * pNtk; int i;
@@ -1467,7 +1467,7 @@ void Abc_NtkInsertPartitions_rec( Abc_Ntk_t * pNew, Abc_Obj_t * pObj, Vec_Int_t 
         pNode->pCopy = Abc_ObjFanin0(Abc_NtkPo(pWin, i))->pCopy;
     assert( pObj->pCopy );
 }
-Abc_Ntk_t * Abc_NtkInsertPartitions( Abc_Ntk_t * p, Vec_Ptr_t * vvIns, Vec_Ptr_t * vvOuts, Vec_Ptr_t * vWins, int fOverlap, Vec_Int_t * vGains )
+Abc_Ntk_t * Abc_NtkInsertPartitions( Abc_Ntk_t * p, Vec_Ptr_t * vvIns, Vec_Ptr_t * vvNodes, Vec_Ptr_t * vvOuts, Vec_Ptr_t * vWins, int fOverlap, Vec_Int_t * vGains )
 {
     if ( vvIns == NULL ) {
         assert( vvOuts == NULL );
@@ -1481,7 +1481,7 @@ Abc_Ntk_t * Abc_NtkInsertPartitions( Abc_Ntk_t * p, Vec_Ptr_t * vvIns, Vec_Ptr_t
         Abc_NtkIncrementTravId( p );
         while ( 1 ) {
             int i, Gain, iEntry = Vec_IntArgMax(vGains);
-            if ( Vec_IntEntry(vGains, iEntry) <= 0 )
+            if ( iEntry == -1 || Vec_IntEntry(vGains, iEntry) < 0 )
                 break;
             //printf( "Selecting partition %d with gain %d.\n", iEntry, Vec_IntEntry(vGains, iEntry) );
             Vec_IntWriteEntry( vGains, iEntry, -1 );
@@ -1491,18 +1491,14 @@ Abc_Ntk_t * Abc_NtkInsertPartitions( Abc_Ntk_t * p, Vec_Ptr_t * vvIns, Vec_Ptr_t
             extern void Abc_NtKMarkTfiTfo( Vec_Int_t * vOne, Abc_Ntk_t * pNtk );
             Abc_NtKMarkTfiTfo( (Vec_Int_t *)Vec_PtrEntryLast(vvInsNew), p );
             Vec_IntForEachEntry( vGains, Gain, i ) {
-                if ( Gain <= 0 )
+                if ( Gain < 0 )
                     continue;
-                Vec_Int_t * vIns  = (Vec_Int_t *)Vec_PtrEntry(vvIns,  i);
-                Vec_Int_t * vOuts = (Vec_Int_t *)Vec_PtrEntry(vvOuts, i);
-                Abc_Obj_t * pNode; int j, k;
-                Abc_NtkForEachObjVec( vIns, p, pNode, j )
+                Vec_Int_t * vNodes  = (Vec_Int_t *)Vec_PtrEntry(vvNodes, i);
+                Abc_Obj_t * pNode; int j;
+                Abc_NtkForEachObjVec( vNodes, p, pNode, j )
                     if ( Abc_NodeIsTravIdCurrent(pNode) )
                         break;
-                Abc_NtkForEachObjVec( vOuts, p, pNode, k )
-                    if ( Abc_NodeIsTravIdCurrent(pNode) )
-                        break;
-                if ( j < Vec_IntSize(vIns) || k < Vec_IntSize(vOuts) )
+                if ( j < Vec_IntSize(vNodes) )
                     Vec_IntWriteEntry( vGains, i, -1 );
             }         
         }
@@ -1764,8 +1760,8 @@ void Abc_NtKMarkTfiTfo( Vec_Int_t * vOne, Abc_Ntk_t * pNtk )
 {
     int i; Abc_Obj_t * pObj;
     Abc_NtkForEachObjVec( vOne, pNtk, pObj, i ) {
-        Abc_NodeSetTravIdPrevious(pObj);
-        Abc_ObjDfsMark_rec( pObj );
+        //Abc_NodeSetTravIdPrevious(pObj);
+        //Abc_ObjDfsMark_rec( pObj );
         Abc_NodeSetTravIdPrevious(pObj);
         Abc_ObjDfsMark2_rec( pObj );
     }
@@ -1939,7 +1935,7 @@ void Abc_NtkStochMap( int nSuppMax, int nIters, int TimeOut, int Seed, int fOver
         Abc_Ntk_t * pNtk   = Abc_NtkDupDfs(Abc_FrameReadNtk(Abc_FrameGetGlobalFrame()));
         Vec_Ptr_t * vWins  = Abc_NtkExtractPartitions( pNtk, i, nSuppMax, &vIns, &vOuts, &vNodes, fOverlap );
         Vec_Int_t * vGains = Abc_NtkStochProcess( vWins, pScript, nProcs, 0, 0 ); int nPartsInit = Vec_PtrSize(vWins);
-        Abc_Ntk_t * pNew   = Abc_NtkInsertPartitions( pNtk, vIns, vOuts, vWins, fOverlap, vGains );
+        Abc_Ntk_t * pNew   = Abc_NtkInsertPartitions( pNtk, vIns, vNodes, vOuts, vWins, fOverlap, vGains );
         Abc_FrameReplaceCurrentNetwork( Abc_FrameGetGlobalFrame(), pNew );
         if ( fVerbose )
         printf( "Iteration %3d : Using %3d -> %3d partitions. Reducing area from %.2f to %.2f.  ", 
@@ -1961,7 +1957,7 @@ void Abc_NtkStochMap( int nSuppMax, int nIters, int TimeOut, int Seed, int fOver
     }
     aEnd = Abc_NtkGetMappedArea(Abc_FrameReadNtk(Abc_FrameGetGlobalFrame()));
     if ( fVerbose )
-    printf( "Cumulatively reduced area by %.2f %% after %d iterations.  ", 100.0*(aBeg - aEnd)/aBeg, nIters );
+    printf( "Cumulatively reduced area by %.2f %% after %d iterations.  ", 100.0*(aBeg - aEnd)/Abc_MaxFloat(aBeg, (float)1.0), nIters );
     if ( fVerbose )
     Abc_PrintTime( 0, "Total time", Abc_Clock() - clkStart );
 }
