@@ -149,6 +149,7 @@ struct If_Par_t_
     int                fHashMapping;  // perform AIG hashing after mapping
     int                fUserLutDec;   // perform Boolean decomposition during mapping
     int                fUserLut2D;    // perform Boolean decomposition during mapping
+    int                fDumpFile;     // dumping truth tables into a file
     int                fVerbose;      // the verbosity flag
     int                fVerboseTrace; // the verbosity flag
     char *             pLutStruct;    // LUT structure
@@ -284,6 +285,8 @@ struct If_Man_t_
     int                pDumpIns[16];
     Vec_Str_t *        vMarks;
     Vec_Int_t *        vVisited2;
+    Vec_Int_t *        vCuts;
+    Vec_Int_t *        vCutCosts;
 
     // timing manager
     Tim_Man_t *        pManTim;
