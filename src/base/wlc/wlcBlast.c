@@ -1336,6 +1336,49 @@ void Wlc_BlastBooth( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int 
     Vec_IntFree( vArgB );
 }
 
+void Wlc_NtkDumpMulties( Wlc_Ntk_t * p, Gia_Man_t * pNew )
+{
+    Wlc_Obj_t * pObj; int i;
+    Gia_ManCreateRefs( pNew );
+    Wlc_NtkForEachObj( p, pObj, i ) {
+        if ( pObj->Type != WLC_OBJ_ARI_MULTI )
+            continue;
+        int fSigned  = Wlc_ObjIsSignedFanin01(p, pObj);
+        int nRange   = Wlc_ObjRange( pObj );
+        int nRange0  = Wlc_ObjRange( Wlc_ObjFanin0(p, pObj) );
+        int nRange1  = Wlc_ObjRange( Wlc_ObjFanin1(p, pObj) );
+        int * pFans  = Vec_IntEntryP( &p->vBits, Wlc_ObjCopy(p, i) );
+        int * pFans0 = Vec_IntEntryP( &p->vBits, Wlc_ObjCopy(p, Wlc_ObjFaninId0(pObj)) );
+        int * pFans1 = Vec_IntEntryP( &p->vBits, Wlc_ObjCopy(p, Wlc_ObjFaninId1(pObj)) );
+
+        printf( "\n%d\n", fSigned );
+        printf( "%2d :", nRange0 );
+        for ( int k = 0; k < nRange0; k++ )
+            if ( pFans0[k] == -1 )
+                printf( " -" );
+            else
+                printf( " %c%d(%d)", Abc_LitIsCompl(pFans0[k])?'-':'+', Abc_Lit2Var(pFans0[k]), Gia_ObjRefNumId(pNew, Abc_Lit2Var(pFans0[k])) );
+        printf( "\n" );
+
+        printf( "%2d :", nRange1 );
+        for ( int k = 0; k < nRange1; k++ )
+            if ( pFans1[k] == -1 )
+                printf( " -" );
+            else
+                printf( " %c%d(%d)", Abc_LitIsCompl(pFans1[k])?'-':'+', Abc_Lit2Var(pFans1[k]), Gia_ObjRefNumId(pNew, Abc_Lit2Var(pFans1[k])) );
+        printf( "\n" );
+
+        printf( "%2d :", nRange );
+        for ( int k = 0; k < nRange; k++ )
+            if ( pFans[k] == -1 )
+                printf( " -" );
+            else
+                printf( " %c%d(%d)", Abc_LitIsCompl(pFans[k])?'-':'+', Abc_Lit2Var(pFans[k]), Gia_ObjRefNumId(pNew, Abc_Lit2Var(pFans[k])) );
+        printf( "\n" );
+    }
+}
+
+
 /**Function*************************************************************
 
   Synopsis    []
@@ -1987,8 +2030,10 @@ Gia_Man_t * Wlc_NtkBitBlast( Wlc_Ntk_t * p, Wlc_BstPar_t * pParIn )
                 int nRangeMax = Abc_MaxInt(nRange0, nRange1);
                 int * pArg0 = Wlc_VecLoadFanins( vTemp0, pFans0, nRange0, nRangeMax, fSigned );
                 int * pArg1 = Wlc_VecLoadFanins( vTemp1, pFans1, nRange1, nRangeMax, fSigned );
-                if ( nRange0 == nRange1 && Wlc_NtkCountConstBits(pArg0, nRangeMax) < Wlc_NtkCountConstBits(pArg1, nRangeMax) )
+                if ( Wlc_NtkCountConstBits(pArg0, nRangeMax) < Wlc_NtkCountConstBits(pArg1, nRangeMax) ) {
                     ABC_SWAP( int *, pArg0, pArg1 );
+                    ABC_SWAP( int, nRange0, nRange1 );
+                }
                 if ( pPar->fBooth )
                     Wlc_BlastBooth( pNew, pArg0, pArg1, nRange0, nRange1, vRes, fSigned, pPar->fCla, NULL, pParIn->fVerbose );
                 else if ( pPar->fCla )
@@ -2696,6 +2741,7 @@ Gia_Man_t * Wlc_NtkBitBlast( Wlc_Ntk_t * p, Wlc_BstPar_t * pParIn )
 //        Abc_Frame_t * pAbc = Abc_FrameGetGlobalFrame();
 //        pAbc->vMiniLutObjs = Gia_ManDeriveBoxMapping( pNew );        
 //    }
+    //Wlc_NtkDumpMulties( p, pNew );
     return pNew;
 }
 
