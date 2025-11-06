@@ -451,31 +451,19 @@ void Tim_ManCreate( Tim_Man_t * p, void * pLib, Vec_Flt_t * vInArrs, Vec_Flt_t *
     // create arrival times
     if ( vInArrs )
     {
-        if ( Vec_FltSize(vInArrs) == Tim_ManPiNum(p) ) {
-            Tim_ManForEachPi( p, pObj, i )
-                pObj->timeArr = Vec_FltEntry(vInArrs, i);
-        }
-        else if ( Vec_FltSize(vInArrs) == Tim_ManCiNum(p) ) {
-            Tim_ManForEachCi( p, pObj, i )
-                pObj->timeArr = Vec_FltEntry(vInArrs, i);
-        }
-        else assert( 0 );
+        assert( Vec_FltSize(vInArrs) == Tim_ManPiNum(p) );
+        Tim_ManForEachPi( p, pObj, i )
+            pObj->timeArr = Vec_FltEntry(vInArrs, i);
+
     }
     // create required times
     if ( vOutReqs )
     {
         k = 0;
-        if ( Vec_FltSize(vOutReqs) == Tim_ManPoNum(p) ) {
-            Tim_ManForEachPo( p, pObj, i )
-                pObj->timeReq = Vec_FltEntry(vOutReqs, k++);
-            assert( k == Tim_ManPoNum(p) );
-        }
-        else if ( Vec_FltSize(vOutReqs) == Tim_ManCoNum(p) ) {
-            Tim_ManForEachCo( p, pObj, i )
-                pObj->timeReq = Vec_FltEntry(vOutReqs, k++);
-            assert( k == Tim_ManCoNum(p) );
-        }
-        else assert( 0 );
+        assert( Vec_FltSize(vOutReqs) == Tim_ManPoNum(p) );
+        Tim_ManForEachPo( p, pObj, i )
+            pObj->timeReq = Vec_FltEntry(vOutReqs, k++);
+        assert( k == Tim_ManPoNum(p) );
     }
 }
 
