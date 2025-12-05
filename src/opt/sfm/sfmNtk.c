@@ -58,7 +58,7 @@ void Sfm_CheckConsistency( Vec_Wec_t * vFanins, int nPis, int nPos, Vec_Str_t * 
             assert( Fanin + nPos < Vec_WecSize(vFanins) );
         // POs have one fanout
         if ( i + nPos >= Vec_WecSize(vFanins) )
-            assert( Vec_IntSize(vArray) == 1 );
+            assert( Vec_IntSize(vArray) == 1 && Vec_StrEntry(vFixed, i) == (char)0 );
     }
 }
 
@@ -164,7 +164,7 @@ void Sfm_CreateLevelR( Vec_Wec_t * vFanouts, Vec_Int_t * vLevelsR, Vec_Str_t * v
   SeeAlso     []
 
 ***********************************************************************/
-Sfm_Ntk_t * Sfm_NtkConstruct( Vec_Wec_t * vFanins, int nPis, int nPos, Vec_Str_t * vFixed, Vec_Str_t * vEmpty, Vec_Str_t * vDenied, Vec_Wrd_t * vTruths, Vec_Int_t * vStarts, Vec_Wrd_t * vTruths2 )
+Sfm_Ntk_t * Sfm_NtkConstruct( Vec_Wec_t * vFanins, int nPis, int nPos, Vec_Str_t * vFixed, Vec_Str_t * vEmpty, Vec_Wrd_t * vTruths, Vec_Int_t * vStarts, Vec_Wrd_t * vTruths2 )
 {
     Sfm_Ntk_t * p; int i;
     Sfm_CheckConsistency( vFanins, nPis, nPos, vFixed );
@@ -177,7 +177,6 @@ Sfm_Ntk_t * Sfm_NtkConstruct( Vec_Wec_t * vFanins, int nPis, int nPos, Vec_Str_t
     p->vFixed   = vFixed;
     p->vEmpty   = vEmpty;
     p->vTruths  = vTruths;
-    p->vDenied  = vDenied;
     p->vFanins  = *vFanins;
     p->vStarts  = vStarts;
     p->vTruths2 = vTruths2;
@@ -222,7 +221,6 @@ void Sfm_NtkFree( Sfm_Ntk_t * p )
     // user data
     Vec_StrFree( p->vFixed );
     Vec_StrFreeP( &p->vEmpty );
-    Vec_StrFreeP( &p->vDenied );
     Vec_WrdFree( p->vTruths );
     Vec_WecErase( &p->vFanins );
     Vec_IntFree( p->vStarts );

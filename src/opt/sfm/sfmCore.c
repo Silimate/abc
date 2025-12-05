@@ -58,7 +58,6 @@ void Sfm_ParSetDefault( Sfm_Par_t * pPars )
     pPars->fAllBoxes    =    0;  // enable preserving all boxes
     pPars->fVerbose     =    0;  // enable basic stats
     pPars->fVeryVerbose =    0;  // enable detailed stats
-    pPars->fTestReimport =   0;  // enable testing of re-import
 }
 
 /**Function*************************************************************
@@ -115,7 +114,7 @@ int Sfm_NodeResubSolve( Sfm_Ntk_t * p, int iNode, int f, int fRemoveOnly )
     int fSkipUpdate  = 0;
     int fVeryVerbose = 0;//p->pPars->fVeryVerbose && Vec_IntSize(p->vDivs) < 200;// || pNode->Id == 556;
     int i, iFanin, iVar = -1;
-    int iFaninRem = -1;
+    int iFaninRem = -1, iFaninSkip = -1;
     int nFanins = Sfm_ObjFaninNum(p, iNode); 
     word uTruth, uSign, uMask;
     abctime clk;
@@ -138,6 +137,9 @@ int Sfm_NodeResubSolve( Sfm_Ntk_t * p, int iNode, int f, int fRemoveOnly )
         else
             iFaninRem = iFanin;
     assert( iFaninRem != -1 );
+    // find fanin to skip 
+    if ( Sfm_ObjIsFixed(p, iFaninRem) && Sfm_ObjFaninNum(p, iFaninRem) == 1 )
+        iFaninSkip = Sfm_ObjFanin(p, iFaninRem, 0);
 clk = Abc_Clock();
     uTruth = Sfm_ComputeInterpolant( p );
 p->timeSat += Abc_Clock() - clk;
@@ -173,10 +175,11 @@ p->timeSat += Abc_Clock() - clk;
         // find the next divisor to try
         uMask = (~(word)0) >> (64 - p->nCexes);
         Vec_WrdForEachEntry( p->vDivCexes, uSign, iVar )
-            if ( uSign == uMask && !Sfm_ObjIsDenied(p, Vec_IntEntry(p->vDivs, iVar)) )
+            if ( uSign == uMask && Vec_IntEntry(p->vDivs, iVar) != iFaninSkip )
                 break;
         if ( iVar == Vec_IntSize(p->vDivs) )
             return 0;
+        assert( Vec_IntEntry(p->vDivs, iVar) != iFaninSkip );
         // try replacing the critical fanin
         Vec_IntPush( p->vDivIds, Sfm_ObjSatVar(p, Vec_IntEntry(p->vDivs, iVar)) );
 clk = Abc_Clock();
@@ -285,10 +288,6 @@ p->timeSat += Abc_Clock() - clk;
 int Sfm_NodeResub( Sfm_Ntk_t * p, int iNode )
 {
     int i, iFanin;
-
-    if (Sfm_NodeReadFixed(p, iNode))
-        return 0;
-
     p->nNodesTried++;
     // prepare SAT solver
     if ( !Sfm_NtkCreateWindow( p, iNode, p->pPars->fVeryVerbose ) )

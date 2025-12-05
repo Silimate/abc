@@ -142,19 +142,18 @@ void Sfm_NtkDfs_rec( Sfm_Ntk_t * p, int iNode, Vec_Int_t * vNodes, Vec_Wec_t * v
         return;
     if ( Vec_IntEntry(vGroupMap, iNode) >= 0 )
     {
-        int iGroup = Abc_Lit2Var(Vec_IntEntry(vGroupMap, iNode));
-        Vec_Int_t * vGroup = Vec_WecEntry(vGroups, iGroup);
-        assert(Abc_LitIsCompl(Vec_IntEntry(vGroupMap, iNode)));
-        Vec_IntPush(vBoxesLeft, iGroup);
-        Vec_IntForEachEntry(vGroup, iNode, i)
-        {
-            // ignore inputs
-            if ( !Abc_LitIsCompl(Vec_IntEntry(vGroupMap, iNode)))
-                continue;
-            assert(Sfm_ObjIsNode(p, iNode));
-            Sfm_ObjSetTravIdCurrent(p, iNode);
-            Vec_IntPush(vNodes, iNode);
-        }
+        int k, iGroup = Abc_Lit2Var( Vec_IntEntry(vGroupMap, iNode) );
+        Vec_Int_t * vGroup = Vec_WecEntry( vGroups, iGroup );
+        Vec_IntForEachEntry( vGroup, iNode, i )
+            assert( Sfm_ObjIsNode(p, iNode) );
+        Vec_IntForEachEntry( vGroup, iNode, i )
+            Sfm_ObjSetTravIdCurrent( p, iNode );
+        Vec_IntForEachEntry( vGroup, iNode, i )
+            Sfm_ObjForEachFanin( p, iNode, iFanin, k )
+                Sfm_NtkDfs_rec( p, iFanin, vNodes, vGroups, vGroupMap, vBoxesLeft );
+        Vec_IntForEachEntry( vGroup, iNode, i )
+            Vec_IntPush( vNodes, iNode );
+        Vec_IntPush( vBoxesLeft, iGroup );
     }
     else
     {
@@ -171,33 +170,14 @@ Vec_Int_t * Sfm_NtkDfs( Sfm_Ntk_t * p, Vec_Wec_t * vGroups, Vec_Int_t * vGroupMa
     Vec_IntClear( vBoxesLeft );
     vNodes = Vec_IntAlloc( p->nObjs );
     Sfm_NtkIncrementTravId( p );
-
-    assert(!fAllBoxes); // TODO
-
-    Sfm_NtkForEachPo( p, i ) {
-        int iFanin = Sfm_ObjFanin(p, i, 0);
-        // detect fake PO modeling blackbox input
-        if (Vec_IntEntry(vGroupMap, iFanin) >= 0 && !Abc_LitIsCompl(Vec_IntEntry(vGroupMap, iFanin)))
-            continue;
-        Sfm_NtkDfs_rec( p, iFanin, vNodes, vGroups, vGroupMap, vBoxesLeft );
-    }
-
-    for (i = 0; i < Vec_IntSize( vBoxesLeft ); i++)
+    if ( fAllBoxes )
     {
-        int k, j, iNode, iFanin;
-        int iGroup = Vec_IntEntry( vBoxesLeft, i );
-        Vec_Int_t * vGroup = Vec_WecEntry( vGroups, iGroup );
-        Vec_IntForEachEntry( vGroup, iNode, k )
-        {
-            // ignore outputs
-            if ( Abc_LitIsCompl( Vec_IntEntry(vGroupMap, iNode)) )
-                continue;
-            Sfm_ObjForEachFanin( p, iNode, iFanin, j )
-                Sfm_NtkDfs_rec( p, iFanin, vNodes, vGroups, vGroupMap, vBoxesLeft );
-            Vec_IntPush( vNodes, iNode );
-        }
+        Vec_Int_t * vGroup;
+        Vec_WecForEachLevel( vGroups, vGroup, i )
+            Sfm_NtkDfs_rec( p, Vec_IntEntry(vGroup, 0), vNodes, vGroups, vGroupMap, vBoxesLeft );
     }
-
+    Sfm_NtkForEachPo( p, i )
+        Sfm_NtkDfs_rec( p, Sfm_ObjFanin(p, i, 0), vNodes, vGroups, vGroupMap, vBoxesLeft );
     return vNodes;
 }
 

@@ -81,7 +81,6 @@ struct Sfm_Ntk_t_
     // user data
     Vec_Str_t *       vFixed;      // persistent objects
     Vec_Str_t *       vEmpty;      // transparent objects
-    Vec_Str_t *       vDenied;     // denied objects
     Vec_Wrd_t *       vTruths;     // truth tables
     Vec_Wec_t         vFanins;     // fanins
     Vec_Int_t *       vStarts;     // offsets
@@ -158,7 +157,6 @@ static inline int  Sfm_ObjIsPi( Sfm_Ntk_t * p, int i )                  { return
 static inline int  Sfm_ObjIsPo( Sfm_Ntk_t * p, int i )                  { return i + p->nPos >= p->nObjs;                   }
 static inline int  Sfm_ObjIsNode( Sfm_Ntk_t * p, int i )                { return i >= p->nPis && i + p->nPos < p->nObjs;    }
 static inline int  Sfm_ObjIsFixed( Sfm_Ntk_t * p, int i )               { return Vec_StrEntry(p->vFixed, i);                }
-static inline int  Sfm_ObjIsDenied( Sfm_Ntk_t * p, int i )              { return p->vDenied && Vec_StrEntry(p->vDenied, i); }
 static inline int  Sfm_ObjAddsLevelArray( Vec_Str_t * p, int i )        { return p == NULL || Vec_StrEntry(p, i) == 0;      }
 static inline int  Sfm_ObjAddsLevel( Sfm_Ntk_t * p, int i )             { return Sfm_ObjAddsLevelArray(p->vEmpty, i);       }
 

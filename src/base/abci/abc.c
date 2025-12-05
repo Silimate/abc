@@ -53580,7 +53580,7 @@ int Abc_CommandAbc9Mfs( Abc_Frame_t * pAbc, int argc, char ** argv )
     pPars->nDepthMax   =  100;
     pPars->nWinSizeMax = 2000;
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "WFDMLCNdaeblvwhr" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "WFDMLCNdaeblvwh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -53676,9 +53676,6 @@ int Abc_CommandAbc9Mfs( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 'l':
             pPars->fUseDcs ^= 1;
             break;
-        case 'r':
-            pPars->fTestReimport ^= 1;
-            break;
         case 'v':
             pPars->fVerbose ^= 1;
             break;
@@ -53748,7 +53745,6 @@ usage:
     Abc_Print( -2, "\t-l       : toggle deriving don't-cares [default = %s]\n",                                 pPars->fUseDcs? "yes": "no" );
     Abc_Print( -2, "\t-v       : toggle printing optimization summary [default = %s]\n",                        pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-w       : toggle printing detailed stats for each node [default = %s]\n",                pPars->fVeryVerbose? "yes": "no" );
-    Abc_Print( -2, "\t-r       : toggle testing re-importing the network unchanged [default = %s]\n",           pPars->fTestReimport? "yes": "no" );
     Abc_Print( -2, "\t-h       : print the command usage\n");
     return 1;
 }
