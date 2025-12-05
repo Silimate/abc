@@ -172,6 +172,7 @@ static int Abc_CommandBmsPs                  ( Abc_Frame_t * pAbc, int argc, cha
 static int Abc_CommandMajExact               ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int Abc_CommandTwoExact               ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int Abc_CommandLutExact               ( Abc_Frame_t * pAbc, int argc, char ** argv );
+static int Abc_CommandAndExact               ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int Abc_CommandAllExact               ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int Abc_CommandTestExact              ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int Abc_CommandMajGen                 ( Abc_Frame_t * pAbc, int argc, char ** argv );
@@ -1002,6 +1003,7 @@ void Abc_Init( Abc_Frame_t * pAbc )
     Cmd_CommandAdd( pAbc, "Exact synthesis", "majexact",   Abc_CommandMajExact,         0 );
     Cmd_CommandAdd( pAbc, "Exact synthesis", "twoexact",   Abc_CommandTwoExact,         0 );
     Cmd_CommandAdd( pAbc, "Exact synthesis", "lutexact",   Abc_CommandLutExact,         0 );
+    Cmd_CommandAdd( pAbc, "Exact synthesis", "andexact",   Abc_CommandAndExact,         0 );
     Cmd_CommandAdd( pAbc, "Exact synthesis", "allexact",   Abc_CommandAllExact,         0 );
     Cmd_CommandAdd( pAbc, "Exact synthesis", "testexact",  Abc_CommandTestExact,        0 );
     Cmd_CommandAdd( pAbc, "Exact synthesis", "majgen",     Abc_CommandMajGen,           0 );
@@ -10768,7 +10770,7 @@ int Abc_CommandLutExact( Abc_Frame_t * pAbc, int argc, char ** argv )
     Bmc_EsPar_t Pars, * pPars = &Pars;
     Bmc_EsParSetDefault( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "NMKTFUSYPiaorfgckdsmvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "NMKTFUSYPiaorfgckdsmpvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -10896,6 +10898,9 @@ int Abc_CommandLutExact( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 'm':
             pPars->fMinNodes ^= 1;
             break;
+        case 'p':
+            pPars->fUsePerm ^= 1;
+            break;
         case 'v':
             pPars->fVerbose ^= 1;
             break;
@@ -10945,15 +10950,31 @@ int Abc_CommandLutExact( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( -1, "Function with %d variales cannot be implemented with %d %d-input LUTs.\n", pPars->nVars, pPars->nNodes, pPars->nLutSize );
         return 1;
     }
-    if ( pPars->nVars > 12 )
+    if ( pPars->fKissat )
     {
-        Abc_Print( -1, "Function should not have more than 12 inputs.\n" );
-        return 1;
+        if ( pPars->nVars > 14 )
+        {
+            Abc_Print( -1, "Function should not have more than 14 inputs.\n" );
+            return 1;
+        }
+        if ( pPars->nLutSize > 8 )
+        {
+            Abc_Print( -1, "Node size should not be more than 8 inputs.\n" );
+            return 1;
+        }
     }
-    if ( pPars->nLutSize > 6 )
+    else
     {
-        Abc_Print( -1, "Node size should not be more than 6 inputs.\n" );
-        return 1;
+        if ( pPars->nVars > 12 )
+        {
+            Abc_Print( -1, "Function should not have more than 12 inputs.\n" );
+            return 1;
+        }
+        if ( pPars->nLutSize > 6 )
+        {
+            Abc_Print( -1, "Node size should not be more than 6 inputs.\n" );
+            return 1;
+        }
     }
     if ( pPars->nRandFuncs ) {
         pPars->fGlucose = 1;
@@ -10972,8 +10993,8 @@ int Abc_CommandLutExact( Abc_Frame_t * pAbc, int argc, char ** argv )
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: lutexact [-NMKTFUS <num>] [-Y string] [-P string] [-iaorfgckdsmvh] <hex>\n" );
-    Abc_Print( -2, "\t           exact synthesis of I-input function using N K-input gates\n" );
+    Abc_Print( -2, "usage: lutexact [-NMKTFUS <num>] [-Y string] [-P string] [-iaorfgckdsmpvh] <hex>\n" );
+    Abc_Print( -2, "\t           exact synthesis of N-input function using M K-input lookup-tables\n" );
     Abc_Print( -2, "\t-N <num> : the number of input variables [default = %d]\n", pPars->nVars );
     Abc_Print( -2, "\t-M <num> : the number of K-input nodes [default = %d]\n", pPars->nNodes );
     Abc_Print( -2, "\t-K <num> : the number of node fanins [default = %d]\n", pPars->nLutSize );
@@ -10994,6 +11015,187 @@ usage:
     Abc_Print( -2, "\t-d       : toggle dumping decomposed networks into BLIF files [default = %s]\n", pPars->fDumpBlif ? "yes" : "no" );
     Abc_Print( -2, "\t-s       : toggle silent computation (no messages, except when a solution is found) [default = %s]\n", pPars->fSilent ? "yes" : "no" );
     Abc_Print( -2, "\t-m       : toggle minimum-node solution possibly smaller than \"-M <num>\" [default = %s]\n", pPars->fMinNodes ? "yes" : "no" );
+    Abc_Print( -2, "\t-p       : toggle use specialized permutation when minimizing nodes [default = %s]\n", pPars->fUsePerm ? "yes" : "no" );
+    Abc_Print( -2, "\t-v       : toggle verbose printout [default = %s]\n", pPars->fVerbose ? "yes" : "no" );
+    Abc_Print( -2, "\t-h       : print the command usage\n" );
+    Abc_Print( -2, "\t<hex>    : truth table in hex notation\n" );
+    return 1;
+}
+
+/**Function*************************************************************
+
+  Synopsis    []
+
+  Description []
+
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Abc_CommandAndExact( Abc_Frame_t * pAbc, int argc, char ** argv )
+{
+    extern int Exa9_ManExactSynthesis( Bmc_EsPar_t * pPars );
+    extern int Exa9_ManExactSynthesisIter( Bmc_EsPar_t * pPars );
+    extern char * Abc_NtkReadTruth( Abc_Ntk_t * pNtk );
+    int c;
+    Bmc_EsPar_t Pars, * pPars = &Pars;
+    Bmc_EsParSetDefault( pPars );
+    Extra_UtilGetoptReset();
+    while ( ( c = Extra_UtilGetopt( argc, argv, "NMTSHYiadsmvh" ) ) != EOF )
+    {
+        switch ( c )
+        {
+        case 'N':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-N\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->nVars = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->nVars < 0 )
+                goto usage;
+            break;
+        case 'M':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-M\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->nNodes = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->nNodes < 0 )
+                goto usage;
+            break;
+        case 'T':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-T\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->RuntimeLim = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->RuntimeLim < 0 )
+                goto usage;
+            break;
+        case 'S':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-S\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->Seed = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->Seed < 0 )
+                goto usage;
+            break;
+        case 'H':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-H\" should be followed by a string.\n" );
+                goto usage;
+            }
+            pPars->n1HotAlgo = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            break;
+        case 'Y':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-Y\" should be followed by a string.\n" );
+                goto usage;
+            }
+            pPars->pSymStr = argv[globalUtilOptind];
+            globalUtilOptind++;
+            break;
+        case 'i':
+            pPars->fUseIncr ^= 1;
+            break;
+        case 'a':
+            pPars->fOnlyAnd ^= 1;
+            break;
+        case 'd':
+            pPars->fDumpBlif ^= 1;
+            break;
+        case 's':
+            pPars->fSilent ^= 1;
+            break;
+        case 'm':
+            pPars->fMinNodes ^= 1;
+            break;
+        case 'v':
+            pPars->fVerbose ^= 1;
+            break;
+        case 'h':
+            goto usage;
+        default:
+            goto usage;
+        }
+    }
+    if ( argc == globalUtilOptind + 1 )
+        pPars->pTtStr = argv[globalUtilOptind];
+    else if ( argc == globalUtilOptind && Abc_FrameReadNtk(pAbc) ) 
+    {
+        pPars->pTtStr = Abc_NtkReadTruth( Abc_FrameReadNtk(pAbc) );
+        if ( pPars->pTtStr )  
+            pPars->nVars = Abc_NtkCiNum(Abc_FrameReadNtk(pAbc));
+    }
+    if ( pPars->pTtStr == NULL && pPars->pSymStr == NULL && pPars->nRandFuncs == 0 )
+    {
+        Abc_Print( -1, "Truth table should be given on the command line.\n" );
+        return 1;
+    }
+    if ( pPars->nVars == 0 && pPars->pTtStr )
+        pPars->nVars = 2 + Abc_Base2Log((int)strlen(pPars->pTtStr));
+    if ( pPars->pTtStr && (1 << (pPars->nVars-2)) != (int)strlen(pPars->pTtStr) )
+    {
+        Abc_Print( -1, "Truth table is expected to have %d hex digits (instead of %d).\n", (1 << (pPars->nVars-2)), strlen(pPars->pTtStr) );
+        return 1;
+    }
+    if ( pPars->nVars == 0 && pPars->pSymStr )
+        pPars->nVars = (int)strlen(pPars->pSymStr) - 1;
+    if ( pPars->pSymStr && pPars->nVars+1 != strlen(pPars->pSymStr) )
+    {
+        Abc_Print( -1, "The char string of the %d-variable symmetric function should have %d zeros and ones (instead of %d).\n", pPars->nVars, pPars->nVars+1, strlen(pPars->pSymStr) );
+        return 1;
+    }
+    if ( pPars->nVars > pPars->nNodes + 1 )
+    {
+        Abc_Print( -1, "Function with %d variales cannot be implemented with %d two-input nodes.\n", pPars->nVars, pPars->nNodes );
+        return 1;
+    }
+    if ( pPars->nVars > 14 )
+    {
+        Abc_Print( -1, "Function should not have more than 14 inputs.\n" );
+        return 1;
+    }
+    if ( pPars->nNodes > 16 )
+    {
+        Abc_Print( -1, "Node count cannot be more than 16 inputs.\n" );
+        return 1;
+    }
+    if ( pPars->fMinNodes )
+        Exa9_ManExactSynthesisIter( pPars );
+    else
+        Exa9_ManExactSynthesis( pPars );
+    if ( argc == globalUtilOptind && Abc_FrameReadNtk(pAbc) )
+        ABC_FREE( pPars->pTtStr );
+    return 0;
+
+usage:
+    Abc_Print( -2, "usage: andexact [-NMTSH <num>] [-Y str] [-iadmsvh] <hex>\n" );
+    Abc_Print( -2, "\t           exact synthesis of N-input function using two-input gates\n" );
+    Abc_Print( -2, "\t-N <num> : the number of input variables [default = %d]\n", pPars->nVars );
+    Abc_Print( -2, "\t-M <num> : the number of two-input nodes [default = %d]\n", pPars->nNodes );
+    Abc_Print( -2, "\t-T <num> : the runtime limit in seconds [default = %d]\n", pPars->RuntimeLim );
+    Abc_Print( -2, "\t-S <num> : the random seed for random function generation with -F <num> [default = %d]\n", pPars->Seed );
+    Abc_Print( -2, "\t-H <num> : the 1-hotness algorithm used (0 = naive; 1 = seq; 2 = bim; 3 = cmd) [default = %d]\n", pPars->n1HotAlgo );
+    Abc_Print( -2, "\t-Y <str> : charasteristic string of a symmetric function [default = %s]\n", pPars->pSymStr ? pPars->pSymStr : "unused" );
+    Abc_Print( -2, "\t-i       : toggle using incremental SAT (CEGAR over minterms) [default = %s]\n", pPars->fUseIncr ? "yes" : "no" );
+    Abc_Print( -2, "\t-a       : toggle using only AND-gates when K = 2 [default = %s]\n", pPars->fOnlyAnd ? "yes" : "no" );
+    Abc_Print( -2, "\t-m       : toggle minimum-node solution possibly smaller than \"-M <num>\" [default = %s]\n", pPars->fMinNodes ? "yes" : "no" );
+    Abc_Print( -2, "\t-d       : toggle dumping decomposed networks into BLIF files [default = %s]\n", pPars->fDumpBlif ? "yes" : "no" );
+    Abc_Print( -2, "\t-s       : toggle silent computation (no messages, except when a solution is found) [default = %s]\n", pPars->fSilent ? "yes" : "no" );
     Abc_Print( -2, "\t-v       : toggle verbose printout [default = %s]\n", pPars->fVerbose ? "yes" : "no" );
     Abc_Print( -2, "\t-h       : print the command usage\n" );
     Abc_Print( -2, "\t<hex>    : truth table in hex notation\n" );
@@ -42241,9 +42443,9 @@ usage:
 int Abc_CommandAbc9Verify( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
     char * pFileSpec = NULL;
-    int c, nBTLimit = 1000, nTimeLim = 0, fSeq = 0, fDumpFiles = 0, fVerbose = 0;
+    int c, nBTLimit = 1000, nTimeLim = 0, fSeq = 0, fObjIdMap = 0, fDumpFiles = 0, fVerbose = 0;
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "CTsdvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "CTsmdvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -42272,6 +42474,9 @@ int Abc_CommandAbc9Verify( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 's':
             fSeq ^= 1;
             break;
+        case 'm':
+            fObjIdMap ^= 1;
+            break;
         case 'd':
             fDumpFiles ^= 1;
             break;
@@ -42290,15 +42495,16 @@ int Abc_CommandAbc9Verify( Abc_Frame_t * pAbc, int argc, char ** argv )
         Extra_FileNameCorrectPath( pFileSpec );
         printf( "Taking spec from file \"%s\".\n", pFileSpec );
     }
-    Gia_ManVerifyWithBoxes( pAbc->pGia, nBTLimit, nTimeLim, fSeq, fDumpFiles, fVerbose, pFileSpec );
+    Gia_ManVerifyWithBoxes( pAbc->pGia, nBTLimit, nTimeLim, fSeq, fObjIdMap, fDumpFiles, fVerbose, pFileSpec );
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: &verify [-CT num] [-sdvh] <file>\n" );
+    Abc_Print( -2, "usage: &verify [-CT num] [-smdvh] <file>\n" );
     Abc_Print( -2, "\t         performs verification of combinational design\n" );
     Abc_Print( -2, "\t-C num : the max number of conflicts at a node [default = %d]\n", nBTLimit );
     Abc_Print( -2, "\t-T num : approximate runtime limit in seconds [default = %d]\n",  nTimeLim );
     Abc_Print( -2, "\t-s     : toggle using sequential verification [default = %s]\n",  fSeq? "yes":"no");
+    Abc_Print( -2, "\t-m     : toggle producing object ID mapping (CEC only) [default = %s]\n", fObjIdMap? "yes":"no");
     Abc_Print( -2, "\t-d     : toggle dumping AIGs to be compared [default = %s]\n",    fDumpFiles? "yes":"no");
     Abc_Print( -2, "\t-v     : toggle verbose output [default = %s]\n",                 fVerbose? "yes":"no");
     Abc_Print( -2, "\t-h     : print the command usage\n");
@@ -48170,7 +48376,7 @@ usage:
 ***********************************************************************/
 int Abc_CommandAbc9Permute( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
-    extern Gia_Man_t * Gia_ManDupRandPerm( Gia_Man_t * p );
+    extern Gia_Man_t * Gia_ManDupRandPerm( Gia_Man_t * p, int fVerbose );
     Gia_Man_t * pTemp;
     int c, RandSeed = 0, fVerbose = 0;
     Extra_UtilGetoptReset();
@@ -48211,7 +48417,7 @@ int Abc_CommandAbc9Permute( Abc_Frame_t * pAbc, int argc, char ** argv )
     Abc_Random(1);
     for ( c = 0; c < RandSeed; c++ )
         Abc_Random(0);
-    pTemp = Gia_ManDupRandPerm( pAbc->pGia );
+    pTemp = Gia_ManDupRandPerm( pAbc->pGia, fVerbose );
     Abc_FrameUpdateGia( pAbc, pTemp );
     return 0;
 
