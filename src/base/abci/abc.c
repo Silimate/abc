@@ -840,6 +840,29 @@ void Abc_FrameClearDesign()
   SeeAlso     []
 
 ***********************************************************************/
+static int s_nGiaUpdateCount = 0;
+static const char * s_pGiaCmdTag = NULL;
+
+static void Abc_FrameUpdateGia_DebugLog( Gia_Man_t * pGia, const char * pTag )
+{
+    FILE * f;
+    Nr_Man_t * pNr;
+    int nNodes, nEntries, nOrigins;
+    if ( pGia == NULL )
+        return;
+    pNr = pGia->pNodeRetention;
+    nNodes   = Gia_ManAndNum( pGia );
+    nEntries = pNr ? Nr_ManNumEntries( pNr ) : 0;
+    nOrigins = pNr ? Nr_ManTotalOriginCount( pNr ) : 0;
+    f = fopen( "node_ret/nr_debug.log", (s_nGiaUpdateCount == 0) ? "w" : "a" );
+    if ( f == NULL )
+        return;
+    fprintf( f, "[%3d] %-20s  |  AND nodes: %8d  |  NR entries: %8d  |  NR origins: %8d\n",
+             s_nGiaUpdateCount, pTag ? pTag : "?", nNodes, nEntries, nOrigins );
+    fclose( f );
+    s_nGiaUpdateCount++;
+}
+
 void Abc_FrameUpdateGia( Abc_Frame_t * pAbc, Gia_Man_t * pNew )
 {
     if ( pNew == NULL )
@@ -872,6 +895,8 @@ void Abc_FrameUpdateGia( Abc_Frame_t * pAbc, Gia_Man_t * pNew )
         Gia_ManStop( pAbc->pGia2 );
     pAbc->pGia2 = pAbc->pGia;
     pAbc->pGia  = pNew;
+    Abc_FrameUpdateGia_DebugLog( pNew, s_pGiaCmdTag ? s_pGiaCmdTag : "FrameUpdateGia" );
+    s_pGiaCmdTag = NULL;
 }
 
 /**Function*************************************************************
@@ -34541,6 +34566,7 @@ int Abc_CommandAbc9Get( Abc_Frame_t * pAbc, int argc, char ** argv )
         pGia->vOutReqs = Vec_FltAllocArray( Abc_NtkGetCoRequiredFloats(pNtk), Abc_NtkCoNum(pNtk) );
         pGia->And2Delay = pNtk->AndGateDelay;
     }
+    s_pGiaCmdTag = "&get";
     Abc_FrameUpdateGia( pAbc, pGia );
     return 0;
 
@@ -34699,6 +34725,7 @@ int Abc_CommandAbc9Put( Abc_Frame_t * pAbc, int argc, char ** argv )
     }
 
     // replace the current network
+    Abc_FrameUpdateGia_DebugLog( pAbc->pGia, "&put" );
     Abc_FrameReplaceCurrentNetwork( pAbc, pNtk );
     if ( fStatusClear )
         Abc_FrameClearVerifStatus( pAbc );
@@ -36508,6 +36535,7 @@ int Abc_CommandAbc9Strash( Abc_Frame_t * pAbc, int argc, char ** argv )
         pAbc->pGia->pCellStr = pTemp->pCellStr;     pTemp->pCellStr = NULL;
         pAbc->pGia->vConfigs2= pTemp->vConfigs2;    pTemp->vConfigs2= NULL;
     }
+    s_pGiaCmdTag = "&st";
     Abc_FrameUpdateGia( pAbc, pTemp );
     return 0;
 
@@ -40222,6 +40250,7 @@ int Abc_CommandAbc9Syn2( Abc_Frame_t * pAbc, int argc, char ** argv )
         }
     }
     pTemp = Gia_ManAigSyn2( pAbc->pGia, fOldAlgo, fCoarsen, fCutMin, nRelaxRatio, fDelayMin, fVerbose, fVeryVerbose );
+    s_pGiaCmdTag = "&syn2";
     Abc_FrameUpdateGia( pAbc, pTemp );
     return 0;
 
@@ -40341,6 +40370,7 @@ int Abc_CommandAbc9Synch2( Abc_Frame_t * pAbc, int argc, char ** argv )
         return 1;
     }
     pTemp = Gia_ManAigSynch2( pAbc->pGia, pPars, nLutSize, nRelaxRatio );
+    s_pGiaCmdTag = "&synch2";
     Abc_FrameUpdateGia( pAbc, pTemp );
     return 0;
 
@@ -43311,6 +43341,7 @@ int Abc_CommandAbc9Sweep( Abc_Frame_t * pAbc, int argc, char ** argv )
         pTemp = Gia_ManSweepWithBoxes( pAbc->pGia, pPars, NULL, 0, 0, pPars->fVerbose, 0 );
     else
         pTemp = Gia_ManFraigSweepSimple( pAbc->pGia, pPars );
+    s_pGiaCmdTag = "&sweep";
     Abc_FrameUpdateGia( pAbc, pTemp );
     return 0;
 
@@ -44598,6 +44629,7 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( -1, "Abc_CommandAbc9If(): Mapping of GIA has failed.\n" );
         return 1;
     }
+    s_pGiaCmdTag = "&if";
     Abc_FrameUpdateGia( pAbc, pNew );
     return 0;
 
@@ -46035,6 +46067,7 @@ int Abc_CommandAbc9Nf( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( -1, "Abc_CommandAbc9Nf(): Mapping into LUTs has failed.\n" );
         return 1;
     }
+    s_pGiaCmdTag = "&nf";
     Abc_FrameUpdateGia( pAbc, pNew );
     return 0;
 
