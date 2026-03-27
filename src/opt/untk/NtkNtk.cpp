@@ -11,12 +11,18 @@
 #include <unistd.h>
 #endif
 #include <fstream>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+#include <cctype>
 
 #include <base/wlc/wlc.h>
 #include <sat/bmc/bmc.h>
 #include <proof/pdr/pdr.h>
 #include <proof/fraig/fraig.h>
 #include <aig/gia/giaAig.h>
+#include <base/io/ioAbc.h>
 
 #include "opt/util/util.h"
 #include "opt/ufar/UfarPth.h"
@@ -52,11 +58,14 @@ static inline int create_buffer(Wlc_Ntk_t * p, Wlc_Obj_t * pObj, Vec_Int_t * vFa
 Gia_Man_t * BitBlast(Wlc_Ntk_t * pNtk) {
     Wlc_BstPar_t Par, * pPar = &Par;
     Wlc_BstParDefault( pPar );
-    return Wlc_NtkBitBlast(pNtk, pPar);
-    //Gia_Man_t * pGia = Wlc_NtkBitBlast2(pNtk, NULL);
-    //printf( "Usingn old bit-blaster: " );
-    //Gia_ManPrintStats( pGia, NULL );
-    //return pGia;
+    Gia_Man_t * pGia = Wlc_NtkBitBlast(pNtk, pPar);
+    if ( pGia == NULL )
+        return NULL;
+    if ( pGia->pName == NULL )
+        pGia->pName = Abc_UtilStrsav( pNtk->pName ? pNtk->pName : pNtk->pSpec );
+    if ( pGia->pSpec == NULL )
+        pGia->pSpec = Abc_UtilStrsav( pNtk->pName ? pNtk->pName : pNtk->pSpec );
+    return pGia;
 }
 
 template<typename Functor>
@@ -1119,7 +1128,8 @@ Wlc_Ntk_t * CreateMiter(Wlc_Ntk_t *pNtk, bool fXor)
     assert(Wlc_NtkPoNum(pNtk) == 2);
 
     Wlc_Ntk_t *pNew = Wlc_NtkDupDfsSimple(pNtk);
-    Wlc_NtkTransferNames( pNew, pNtk );
+    if ( !Wlc_NtkHasNameId(pNew) && Wlc_NtkHasNameId(pNtk) )
+        Wlc_NtkTransferNames( pNew, pNtk );
 
     Wlc_Obj_t *pOldPo0 = Wlc_NtkPo(pNew, 0);
     Wlc_Obj_t *pOldPo1 = Wlc_NtkPo(pNew, 1);
@@ -1145,7 +1155,8 @@ Wlc_Ntk_t * CreateMiter(Wlc_Ntk_t *pNtk, bool fXor)
     Wlc_NtkObj(pNew, iOldPo1)->fIsPo = 0;
 
     Wlc_Ntk_t *pNewNew = Wlc_NtkDupDfsSimple(pNew);
-    Wlc_NtkTransferNames( pNewNew, pNew );
+    if ( !Wlc_NtkHasNameId(pNewNew) && Wlc_NtkHasNameId(pNew) )
+        Wlc_NtkTransferNames( pNewNew, pNew );
     Wlc_NtkFree(pNew);
     return pNewNew;
 }
@@ -1245,9 +1256,81 @@ static void readCexFromFile(int& ret, FILE * file, Abc_Cex_t ** ppCex, int nOrig
     }
 }
 
-int verify_model(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileName, const string* pParSetting, bool fSyn, struct timespec * timeout) {
+static inline bool is_solver_cmd_defined(const string* pSolverSetting) {
+    return pSolverSetting && !pSolverSetting->empty() && *pSolverSetting != "none";
+}
+
+static inline int run_external_solver_on_aig( Abc_Ntk_t * pAbcNtk, const string& solverCmd, int nRuntimeLimitSec )
+{
+    const char * pAigFile = "file.aig";
+    Io_Write( pAbcNtk, (char *)pAigFile, IO_FILE_AIGER );
+    std::remove( "status.txt" );
+    std::remove( "log.txt" );
+    string command = solverCmd;
+    if ( command.find(pAigFile) == string::npos )
+        command += string(" ") + pAigFile;
+    if ( nRuntimeLimitSec > 0 )
+        command += " " + to_string(nRuntimeLimitSec);
+    command += " > log.txt 2>&1";
+    LOG(1) << "UFAR external solver: launching command instead of PDR: " << command;
+#ifdef __wasm
+    int res = -1;
+#else
+    int res = system( command.c_str() );
+#endif 
+    std::remove( pAigFile );
+    return res;
+}
+
+static inline int read_external_status_unsat_first_line()
+{
+    ifstream ifs("status.txt", std::ifstream::in);
+    if ( !ifs )
+        return -1;
+    int firstLine = -1;
+    ifs >> firstLine;
+    if ( ifs && firstLine == 0 )
+        return 1;
+    return -1;
+}
+
+static inline int read_external_result_from_log_last_line()
+{
+    ifstream ifs("log.txt", std::ifstream::in);
+    if ( !ifs )
+        return -1;
+    string line, last;
+    auto trim = []( string & s )
+    {
+        while ( !s.empty() && isspace((unsigned char)s.front()) )
+            s.erase( s.begin() );
+        while ( !s.empty() && isspace((unsigned char)s.back()) )
+            s.pop_back();
+    };
+    while ( getline(ifs, line) )
+    {
+        trim(line);
+        if ( !line.empty() )
+            last = line;
+    }
+    if ( last.empty() )
+        return -1;
+    transform( last.begin(), last.end(), last.begin(),
+               []( unsigned char c ){ return (char)toupper(c); } );
+    if ( last.find("UNSAT") != string::npos )
+        return 1;
+    if ( last.find("SAT") != string::npos )
+        return 0;
+    if ( last.find("UNKNOWN") != string::npos || last.find("UNDECIDED") != string::npos )
+        return -1;
+    return -1;
+}
+
+int verify_model(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileName, const string* pParSetting, bool fSyn, struct timespec * timeout, int (*pFuncStop)(int), int RunId, const string* pSolverSetting, int nUfarTimeoutSec) {
+    if ( pFuncStop && pFuncStop(RunId) )
+        return -1;
     if ( !pParSetting || pParSetting->empty() || Wlc_NtkFfNum(pNtk) == 0 )
-        return bit_level_solve( pNtk, ppCex, pFileName, pParSetting, fSyn );
+        return bit_level_solve( pNtk, ppCex, pFileName, pParSetting, fSyn, pFuncStop, RunId, pSolverSetting, nUfarTimeoutSec );
     
     if(*ppCex) {
         Abc_CexFree(*ppCex);
@@ -1262,11 +1345,15 @@ int verify_model(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileName, 
 
     ret = RunConcurrentSolver( pNtk, parSolvers, ppCex, timeout );
 
+    if ( pFuncStop && pFuncStop(RunId) )
+        return -1;
     return ret;
 }
 
 
-int bit_level_solve(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileName, const string* pParSetting, bool fSyn) {
+int bit_level_solve(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileName, const string* pParSetting, bool fSyn, int (*pFuncStop)(int), int RunId, const string* pSolverSetting, int nRuntimeLimitSec) {
+    if ( pFuncStop && pFuncStop(RunId) )
+        return -1;
     if(*ppCex) {
         Abc_CexFree(*ppCex);
         *ppCex = NULL;
@@ -1284,7 +1371,15 @@ int bit_level_solve(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileNam
     }
 
     Aig_Man_t * pAig = Gia_ManToAig(pGia, 0);
+    if ( pAig->pName == NULL )
+        pAig->pName = Abc_UtilStrsav( pGia->pName ? pGia->pName : pGia->pSpec );
+    if ( pAig->pSpec == NULL )
+        pAig->pSpec = Abc_UtilStrsav( pGia->pName ? pGia->pName : pGia->pSpec );
     Abc_Ntk_t * pAbcNtk = Abc_NtkFromAigPhase(pAig);
+    if ( pAbcNtk->pName == NULL )
+        pAbcNtk->pName = Abc_UtilStrsav( pAig->pName ? pAig->pName : pAig->pSpec );
+    if ( pAbcNtk->pSpec == NULL )
+        pAbcNtk->pSpec = Abc_UtilStrsav( pAig->pName ? pAig->pName : pAig->pSpec );
 
     if (pFileName && !pFileName->empty())
         Gia_AigerWriteSimple(pGia, &((*pFileName + ".aig")[0u]));
@@ -1300,9 +1395,32 @@ int bit_level_solve(Wlc_Ntk_t * pNtk, Abc_Cex_t ** ppCex, const string* pFileNam
         }
     } else {
         auto runPDR = [&](FILE * file){
+            if ( is_solver_cmd_defined(pSolverSetting) )
+            {
+                run_external_solver_on_aig( pAbcNtk, *pSolverSetting, nRuntimeLimitSec );
+                int extStatus = read_external_result_from_log_last_line();
+                if ( extStatus == -1 )
+                    extStatus = read_external_status_unsat_first_line();
+                if ( extStatus == 1 )
+                    LOG(1) << "UFAR external solver result (UNSAT) available. Skipping PDR.";
+                else
+                    LOG(1) << "UFAR external solver result not usable (log/status not UNSAT). Calling PDR.";
+                if ( extStatus == 1 )
+                {
+                    writeCexToFile(1, file, NULL);
+                    return 1;
+                }
+                if ( pFuncStop && pFuncStop(RunId) )
+                {
+                    writeCexToFile(-1, file, NULL);
+                    return -1;
+                }
+            }
             Pdr_Par_t PdrPars, *pPdrPars = &PdrPars;
             Pdr_ManSetDefaultParams(pPdrPars);
             pPdrPars->nConfLimit = 0;
+            pPdrPars->RunId = RunId;
+            pPdrPars->pFuncStop = pFuncStop;
             //pPdrPars->fDumpInv = 1;
             Abc_FrameReadGlobalFrame()->pNtkCur = pAbcNtk;
             int res = Abc_NtkDarPdr(pAbcNtk, pPdrPars);

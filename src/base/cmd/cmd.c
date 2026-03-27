@@ -67,6 +67,7 @@ static int CmdCommandCapo          ( Abc_Frame_t * pAbc, int argc, char ** argv 
 static int CmdCommandStarter       ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int CmdCommandAutoTuner     ( Abc_Frame_t * pAbc, int argc, char ** argv );
 static int CmdCommandSolver        ( Abc_Frame_t * pAbc, int argc, char ** argv );
+static int CmdCommandSolver2       ( Abc_Frame_t * pAbc, int argc, char ** argv );
 
 extern int Cmd_CommandAbcLoadPlugIn( Abc_Frame_t * pAbc, int argc, char ** argv );
 
@@ -123,6 +124,7 @@ void Cmd_Init( Abc_Frame_t * pAbc )
     Cmd_CommandAdd( pAbc, "Various", "starter",     CmdCommandStarter,         0 );
     Cmd_CommandAdd( pAbc, "Various", "autotuner",   CmdCommandAutoTuner,       0 );
     Cmd_CommandAdd( pAbc, "Various", "&solver",     CmdCommandSolver,          0 );
+    Cmd_CommandAdd( pAbc, "Various", "&solver2",    CmdCommandSolver2,         0 );
 
     Cmd_CommandAdd( pAbc, "Various", "load_plugin", Cmd_CommandAbcLoadPlugIn,  0 );
 }
@@ -441,6 +443,7 @@ int CmdCommandHistory( Abc_Frame_t * pAbc, int argc, char **argv )
     char * pName, * pStr = NULL;
     int i, c;
     int nPrints = 20;
+    int nPrinted = 0;
     Extra_UtilGetoptReset();
     while ( ( c = Extra_UtilGetopt( argc, argv, "h" ) ) != EOF )
     {
@@ -452,29 +455,68 @@ int CmdCommandHistory( Abc_Frame_t * pAbc, int argc, char **argv )
                 goto usage;
         }
     }
-    if ( argc > globalUtilOptind + 1 )
+    if ( argc > globalUtilOptind + 2 )
         goto usage;
-    // get the number from the command line
-    pStr = argc == globalUtilOptind+1 ? argv[globalUtilOptind] : NULL;
-    if ( pStr && pStr[0] >= '1' && pStr[0] <= '9' )
-        nPrints = atoi(pStr), pStr = NULL;
+    // parse arguments: can be [substring] [number] in either order
+    if ( argc == globalUtilOptind + 1 )
+    {
+        // one argument: either number or substring
+        pStr = argv[globalUtilOptind];
+        if ( pStr && pStr[0] >= '1' && pStr[0] <= '9' )
+        {
+            nPrints = atoi(pStr);
+            pStr = NULL;
+        }
+    }
+    else if ( argc == globalUtilOptind + 2 )
+    {
+        // two arguments: substring and number
+        char * arg1 = argv[globalUtilOptind];
+        char * arg2 = argv[globalUtilOptind + 1];
+
+        // Try to parse second argument as number
+        if ( arg2[0] >= '1' && arg2[0] <= '9' )
+        {
+            pStr = arg1;
+            nPrints = atoi(arg2);
+        }
+        // Try to parse first argument as number
+        else if ( arg1[0] >= '1' && arg1[0] <= '9' )
+        {
+            nPrints = atoi(arg1);
+            pStr = arg2;
+        }
+        else
+        {
+            // Neither is a number, error
+            goto usage;
+        }
+    }
+
     // print the commands
     if ( pStr == NULL ) {
+        // No search string, show last nPrints entries
         Vec_PtrForEachEntryStart( char *, pAbc->aHistory, pName, i, Abc_MaxInt(0, Vec_PtrSize(pAbc->aHistory)-nPrints) )
-            fprintf( pAbc->Out, "%2d : %s\n", Vec_PtrSize(pAbc->aHistory)-i, pName );
+            fprintf( pAbc->Out, "%4d : %s\n", Vec_PtrSize(pAbc->aHistory)-i, pName );
     }
     else {
+        // Search string provided, show up to nPrints matching entries
         Vec_PtrForEachEntry( char *, pAbc->aHistory, pName, i )
             if ( strstr(pName, pStr) )
-                fprintf( pAbc->Out, "%2d : %s\n", Vec_PtrSize(pAbc->aHistory)-i, pName );
+            {
+                fprintf( pAbc->Out, "%4d : %s\n", Vec_PtrSize(pAbc->aHistory)-i, pName );
+                if ( ++nPrinted >= nPrints )
+                    break;
+            }
     }
     return 0;
 
 usage:
-    fprintf( pAbc->Err, "usage: history [-h] <num>\n" );
+    fprintf( pAbc->Err, "usage: history [-h] [substring] [num]\n" );
     fprintf( pAbc->Err, "\t        lists the last commands entered on the command line\n" );
-    fprintf( pAbc->Err, "\t-h    : print the command usage\n" );
-    fprintf( pAbc->Err, "\t<num> : the maximum number of entries to show [default = %d]\n", nPrints );
+    fprintf( pAbc->Err, "\t-h        : print the command usage\n" );
+    fprintf( pAbc->Err, "\tsubstring : search for commands containing this substring\n" );
+    fprintf( pAbc->Err, "\tnum       : the maximum number of entries to show [default = %d]\n", nPrints );
     return ( 1 );
 }
 
@@ -2928,6 +2970,79 @@ usage:
     fprintf( pAbc->Err, "\t           The current AIG will be written to a temporary file\n" );
     fprintf( pAbc->Err, "\t           and passed as the last argument to the solver.\n" );
     fprintf( pAbc->Err, "\t           Example: solver -h\n" );
+    return 1;
+}
+
+
+/**Function********************************************************************
+
+  Synopsis    []
+
+  Description []
+
+  SideEffects []
+
+  SeeAlso     []
+
+******************************************************************************/
+int CmdCommandSolver2( Abc_Frame_t * pAbc, int argc, char **argv )
+{
+    FILE * pFile;
+    char Command[2000];
+    int i;
+
+    if ( argc > 1 )
+    {
+        if ( strcmp( argv[1], "-h" ) == 0 )
+            goto usage;
+        if ( strcmp( argv[1], "-?" ) == 0 )
+            goto usage;
+    }
+
+#if defined(__wasm)
+    fprintf( pAbc->Err, "Unsupported command.\n" );
+    return 1;
+#else
+    // Check if solver binary exists in current directory or PATH
+    if ( (pFile = fopen( "./solver", "r" )) != NULL )
+    {
+        sprintf( Command, "%s", "./solver" );
+        fclose( pFile );
+    }
+    else
+    {
+        char CheckCommand[100];
+        sprintf( CheckCommand, "which solver > /dev/null 2>&1" );
+        if ( system( CheckCommand ) != 0 )
+        {
+            fprintf( pAbc->Err, "Cannot find \"solver\" binary in the current directory or in PATH.\n" );
+            goto usage;
+        }
+        sprintf( Command, "%s", "solver" );
+    }
+
+    // Append user-provided arguments as-is: solver <args>
+    for ( i = 1; i < argc; i++ )
+    {
+        strcat( Command, " " );
+        strcat( Command, argv[i] );
+    }
+
+    fprintf( pAbc->Out, "Executing command: %s\n", Command );
+    if ( system( Command ) == -1 )
+    {
+        fprintf( pAbc->Err, "The following command has failed:\n" );
+        fprintf( pAbc->Err, "\"%s\"\n", Command );
+        return 1;
+    }
+#endif
+    return 0;
+
+usage:
+    fprintf( pAbc->Err, "\tusage: &solver2 <args>\n");
+    fprintf( pAbc->Err, "\t           run the external solver as \"solver <args>\"\n" );
+    fprintf( pAbc->Err, "\t-h      :  print the command usage\n" );
+    fprintf( pAbc->Err, "\t<args>  :  all arguments passed directly to solver\n" );
     return 1;
 }
 
