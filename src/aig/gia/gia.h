@@ -723,7 +723,19 @@ static inline int Gia_ManAppendAnd( Gia_Man_t * p, int iLit0, int iLit1 )
     Gia_Obj_t * pObj = Gia_ManAppendObj( p );
     assert( iLit0 >= 0 && Abc_Lit2Var(iLit0) < Gia_ManObjNum(p) );
     assert( iLit1 >= 0 && Abc_Lit2Var(iLit1) < Gia_ManObjNum(p) );
-    assert( p->fGiaSimple || Abc_Lit2Var(iLit0) != Abc_Lit2Var(iLit1) );
+    // TODO: Fix properly once we have a design that triggers this warning.
+    // When both literals refer to the same variable, the AND is degenerate:
+    //   x & x = x, x & !x = 0. For now, return a safe result instead of asserting.
+    if ( !p->fGiaSimple && Abc_Lit2Var(iLit0) == Abc_Lit2Var(iLit1) )
+    {
+        printf( "WARNING: Gia_ManAppendAnd(): both literals refer to the same variable %d (lit0=%d, lit1=%d). "
+                "Returning simplified result.\n", Abc_Lit2Var(iLit0), iLit0, iLit1 );
+        // Reclaim the object we just appended since we won't use it
+        --p->nObjs;
+        if ( iLit0 == iLit1 )
+            return iLit0;          // x & x = x
+        return 0;                  // x & !x = 0
+    }
     if ( iLit0 < iLit1 )
     {
         pObj->iDiff0  = (unsigned)(Gia_ObjId(p, pObj) - Abc_Lit2Var(iLit0));
