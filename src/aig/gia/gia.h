@@ -731,6 +731,7 @@ static inline int Gia_ManAppendAnd( Gia_Man_t * p, int iLit0, int iLit1 )
         printf( "WARNING: Gia_ManAppendAnd(): both literals refer to the same variable %d (lit0=%d, lit1=%d). "
                 "Returning simplified result.\n", Abc_Lit2Var(iLit0), iLit0, iLit1 );
         // Reclaim the object we just appended since we won't use it
+        if ( Vec_IntSize(&p->vHTable) ) Vec_IntPop( &p->vHash );
         --p->nObjs;
         if ( iLit0 == iLit1 )
             return iLit0;          // x & x = x
