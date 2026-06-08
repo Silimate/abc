@@ -105,35 +105,6 @@ Abc_Obj_t * Abc_SclFindMostCriticalFanin( SC_Man * p, int * pfRise, Abc_Obj_t * 
 
 /**Function*************************************************************
 
-  Synopsis    [Find the output pin represented by this mapped node.]
-
-  Description []
-               
-  SideEffects []
-
-  SeeAlso     []
-
-***********************************************************************/
-static inline int Abc_SclObjOutputIndex( Abc_Obj_t * pObj, SC_Cell * pCell )
-{
-    Mio_Gate_t * pGate;
-    char * pOutName;
-    int i;
-    if ( pCell->n_outputs == 1 )
-        return 0;
-    pGate = (Mio_Gate_t *)pObj->pData;
-    assert( pGate != NULL );
-    pOutName = Mio_GateReadOutName( pGate );
-    assert( pOutName != NULL );
-    for ( i = 0; i < pCell->n_outputs; i++ )
-        if ( !strcmp( pOutName, SC_CellPinName(pCell, pCell->n_inputs + i) ) )
-            return i;
-    assert( 0 );
-    return 0;
-}
-
-/**Function*************************************************************
-
   Synopsis    [Printing timing information for the node/network.]
 
   Description []
@@ -328,20 +299,10 @@ static inline void Abc_SclDeptObj( SC_Man * p, Abc_Obj_t * pObj )
     SC_PairClean( Abc_SclObjDept(p, pObj) );
     Abc_ObjForEachFanout( pObj, pFanout, i )
     {
-        SC_Cell * pFanoutCell;
-        int iFanin, iOut;
         if ( Abc_ObjIsCo(pFanout) || Abc_ObjIsLatch(pFanout) )
             continue;
-        pFanoutCell = Abc_SclObjCell( pFanout );
-        iFanin = Abc_NodeFindFanin( pFanout, pObj );
-        iOut = Abc_SclObjOutputIndex( pFanout, pFanoutCell );
-        pTime = Scl_CellPinOutTime( pFanoutCell, iOut, iFanin );
-        if ( pTime == NULL )
-        {
-            assert( pFanoutCell->n_outputs > 1 );
-            continue;
-        }
-        Abc_SclDeptFanin( p, pTime, pFanout, pObj, iFanin );
+        pTime = Scl_CellPinTime( Abc_SclObjCell(pFanout), Abc_NodeFindFanin(pFanout, pObj) );
+        Abc_SclDeptFanin( p, pTime, pFanout, pObj, Abc_NodeFindFanin(pFanout, pObj) );
     }
 }
 static inline float Abc_SclObjLoadValue( SC_Man * p, Abc_Obj_t * pObj )
@@ -409,13 +370,7 @@ void Abc_SclTimeNode( SC_Man * p, Abc_Obj_t * pObj, int fDept )
     // compute for each fanin
     Abc_ObjForEachFanin( pObj, pFanin, k )
     {
-        int iOut = Abc_SclObjOutputIndex( pObj, pCell );
-        pTime = Scl_CellPinOutTime( pCell, iOut, k );
-        if ( pTime == NULL )
-        {
-            assert( pCell->n_outputs > 1 );
-            continue;
-        }
+        pTime = Scl_CellPinTime( pCell, k );
         if ( fDept )
             Abc_SclDeptFanin( p, pTime, pObj, pFanin, k );
         else
@@ -972,4 +927,5 @@ void Abc_SclPrintBuffers( SC_Lib * pLib, Abc_Ntk_t * pNtk, int fVerbose )
 
 
 ABC_NAMESPACE_IMPL_END
+
 

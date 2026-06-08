@@ -276,7 +276,6 @@ int Ssw_ManSweepBmc( Ssw_Man_t * p )
     int i, f;
     abctime clk;
 clk = Abc_Clock();
-    abctime timeSatBmc = p->timeSat, timeSimSatBmc = p->timeSimSat;
 
     // start initialized timeframes
     p->pFrames = Aig_ManStart( Aig_ManObjNumMax(p->pAig) * p->pPars->nFramesK );
@@ -330,7 +329,7 @@ clk = Abc_Clock();
 
     // cleanup
 //    Ssw_ClassesCheck( p->ppClasses );
-p->timeBmc += (Abc_Clock() - clk) - (p->timeSat - timeSatBmc) - (p->timeSimSat - timeSimSatBmc);
+p->timeBmc += Abc_Clock() - clk;
     return p->fRefined;
 }
 

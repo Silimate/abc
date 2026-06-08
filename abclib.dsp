@@ -4194,39 +4194,11 @@ SOURCE=.\src\opt\sbd\sbdWin.c
 # PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=.\src\opt\eslim\areaEngine.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\areaEngine.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\cadicalSolver.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\delayEngine.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\delayEngine.hpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\src\opt\eslim\eSLIM.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\src\opt\eslim\eSLIM.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\eslimCirMan.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\eslimCirMan.hpp
 # End Source File
 # Begin Source File
 
@@ -4242,31 +4214,11 @@ SOURCE=.\src\opt\eslim\relationGeneration.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\src\opt\eslim\relationSynthesiser.cpp
+SOURCE=.\src\opt\eslim\satInterfaces.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\src\opt\eslim\relationSynthesiser.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\selectionStrategies.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\subcircuit.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\subcircuit.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\synthesisEngines.hpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\opt\eslim\tabooList.hpp
+SOURCE=.\src\opt\eslim\selectionStrategy.hpp
 # End Source File
 # Begin Source File
 
@@ -4274,7 +4226,7 @@ SOURCE=.\src\opt\eslim\utils.hpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\src\opt\eslim\windowMan.hpp
+SOURCE=.\src\opt\eslim\synthesisEngine.hpp
 # End Source File
 # End Group
 # End Group
@@ -4558,10 +4510,6 @@ SOURCE=.\src\map\if\ifUtil.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\src\map\if\ifTrace.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\src\map\if\ifDecJ.c
 # End Source File
 # End Group
@@ -4799,22 +4747,6 @@ SOURCE=.\src\map\mpm\mpmTruth.c
 # Begin Source File
 
 SOURCE=.\src\map\mpm\mpmUtil.c
-# End Source File
-# End Group
-# Begin Group "emap"
-
-# PROP Default_Filter ""
-# Begin Source File
-
-SOURCE=.\src\map\emap\emap.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\map\emap\emap.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\map\emap\emapCore.c
 # End Source File
 # End Group
 # End Group
@@ -6678,10 +6610,6 @@ SOURCE=.\src\proof\cec\cecCore.c
 # Begin Source File
 
 SOURCE=.\src\proof\cec\cecCorr.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\cec\cecCorrIncr.c
 # End Source File
 # Begin Source File
 

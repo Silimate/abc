@@ -131,20 +131,6 @@ float If_CutDelay( If_Man_t * p, If_Obj_t * pObj, If_Cut_t * pCut )
     }
     else
     {
-        if ( p->pPars->fEnableCheck07 && p->pPars->fDelayOptCell && p->pPars->pCellLib )
-        {
-            int Intrinsic[IF_MAX_LUTSIZE];
-            if ( pCut->nLeaves == 0 )
-                return 0.0;
-            assert( pCut->nLeaves == 1 || pCut->Config != 0 );
-            If_CutComputeIntrinsicJ( p, pCut->Config, pCut->nLeaves, Intrinsic );
-            If_CutForEachLeaf( p, pCut, pLeaf, i )
-            {
-                DelayCur = If_ObjCutBest(pLeaf)->Delay + (float)Intrinsic[i];
-                Delay = IF_MAX( Delay, DelayCur );
-            }
-            return Delay;
-        }
         if ( pCut->fUser )
         {
             assert( !p->pPars->fLiftLeaves );
@@ -233,17 +219,6 @@ void If_CutPropagateRequired( If_Man_t * p, If_Obj_t * pObj, If_Cut_t * pCut, fl
     }
     else
     {
-        if ( p->pPars->fEnableCheck07 && p->pPars->fDelayOptCell && p->pPars->pCellLib )
-        {
-            int Intrinsic[IF_MAX_LUTSIZE];
-            if ( pCut->nLeaves == 0 )
-                return;
-            assert( (pObj && pObj->Id == 0) || pCut->nLeaves == 1 || pCut->Config != 0 );
-            If_CutComputeIntrinsicJ( p, pCut->Config, pCut->nLeaves, Intrinsic );
-            If_CutForEachLeaf( p, pCut, pLeaf, i )
-                pLeaf->Required = IF_MIN( pLeaf->Required, ObjRequired - (float)Intrinsic[i] );
-            return;
-        }
         if ( pCut->fUser )
         {
             char Perm[IF_MAX_FUNC_LUTSIZE], * pPerm = Perm;
@@ -477,26 +452,7 @@ void If_ManComputeRequired( If_Man_t * p )
             return;
         // set the required times for the POs
         Tim_ManIncrementTravId( p->pManTim );
-        if ( p->pPars->pTimesReq )
-        {
-            Counter = 0;
-            If_ManForEachCo( p, pObj, i )
-            {
-                reqTime = p->pPars->pTimesReq[i];
-                if ( If_ObjArrTime(If_ObjFanin0(pObj)) > reqTime + p->fEpsilon )
-                {
-                    reqTime = If_ObjArrTime(If_ObjFanin0(pObj));
-                    Counter++;
-                }
-                Tim_ManSetCoRequired( p->pManTim, i, reqTime );
-            }
-            if ( Counter && !p->fReqTimeWarn )
-            {
-                Abc_Print( 0, "Required times are exceeded at %d output%s. The earliest arrival times are used.\n", Counter, Counter > 1 ? "s":"" );
-                p->fReqTimeWarn = 1;
-            }
-        }
-        else if ( p->vCoAttrs )
+        if ( p->vCoAttrs )
         {
             assert( If_ManCoNum(p) == Vec_IntSize(p->vCoAttrs) );
             If_ManForEachCo( p, pObj, i )
@@ -572,3 +528,4 @@ void If_ManComputeRequired( If_Man_t * p )
 
 
 ABC_NAMESPACE_IMPL_END
+

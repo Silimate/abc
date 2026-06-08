@@ -94,13 +94,14 @@ void Abc_FlowRetime_ConstrainConserv( Abc_Ntk_t * pNtk ) {
 
   // clear all exact constraints
   pManMR->nExactConstraints = 0;
-  Abc_NtkForEachObj( pNtk, pObj, i ) {
+  while( Vec_PtrSize( pManMR->vExactNodes )) {
+    pObj = (Abc_Obj_t*)Vec_PtrPop( pManMR->vExactNodes );
+    
     if ( Vec_PtrSize( FTIMEEDGES(pObj) )) {
       pArray =  Vec_PtrReleaseArray( FTIMEEDGES(pObj) );
       ABC_FREE( pArray );
     }
   }
-  Vec_PtrClear( pManMR->vExactNodes );
 
 #if !defined(IGNORE_TIMING)
   if (pManMR->fIsForward) {
