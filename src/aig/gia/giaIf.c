@@ -2623,6 +2623,10 @@ Gia_Man_t * Gia_ManFromIfLogic( If_Man_t * pIfMan )
             Vec_IntPush( vMapping2, 0 );
         }
         else assert( 0 );
+        // Preserve Silimate node-retention origins onto the reconstructed GIA node.
+        // Without this, LUT-mapped &put (Abc_NtkFromMappedGia*) has nothing to remap to src.
+        if ( pIfObj->iCopy > 1 )
+            Nr_ManCopyOrigins( pNew->pNodeRetention, pIfMan->pNodeRetention, Abc_Lit2Var(pIfObj->iCopy), If_ObjId(pIfObj) );
     }
     Vec_IntFree( vLits );
     Vec_IntFree( vCover );

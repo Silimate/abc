@@ -917,9 +917,14 @@ Abc_Obj_t * Abc_NtkFromMappedGia_rec( Abc_Ntk_t * pNtkNew, Gia_Man_t * p, int iO
         if ( Gia_ObjFaninC0(pObj) )  Abc_SopComplementVar( (char *)pObjNew->pData, 0 );
         if ( Gia_ObjFaninC1(pObj) )  Abc_SopComplementVar( (char *)pObjNew->pData, 1 );
         pObj->Value = Abc_ObjId( pObjNew );
+        // Preserve Silimate node-retention origins across LUT/SOP reconstruction.
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), iObj );
     }
     if ( fAddInv )
+    {
         pObjNew = Abc_NtkCreateNodeInv(pNtkNew, pObjNew);
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), iObj );
+    }
     return pObjNew;
 }
 Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBuffs, int fCheckAnd5, int fVerbose )
@@ -945,10 +950,18 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
     Gia_ManConst0(p)->Value = Abc_ObjId(pConst0);
     // create PIs
     Gia_ManForEachPi( p, pObj, i )
-        pObj->Value = Abc_ObjId( Abc_NtkCreatePi( pNtkNew ) );
+    {
+        pObjNew = Abc_NtkCreatePi( pNtkNew );
+        pObj->Value = Abc_ObjId( pObjNew );
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), Gia_ObjId(p, pObj) );
+    }
     // create POs
     Gia_ManForEachPo( p, pObj, i )
-        pObj->Value = Abc_ObjId( Abc_NtkCreatePo( pNtkNew ) );
+    {
+        pObjNew = Abc_NtkCreatePo( pNtkNew );
+        pObj->Value = Abc_ObjId( pObjNew );
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), Gia_ObjId(p, pObj) );
+    }
     // create as many latches as there are registers in the manager
     Gia_ManForEachRiRo( p, pObjLi, pObjLo, i )
     {
@@ -959,6 +972,8 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
         Abc_ObjAddFanin( pObjNewLo, pObjNew );
         pObjLi->Value = Abc_ObjId( pObjNewLi );
         pObjLo->Value = Abc_ObjId( pObjNewLo );
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNewLi), Gia_ObjId(p, pObjLi) );
+        Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNewLo), Gia_ObjId(p, pObjLo) );
         Abc_LatchSetInit0( pObjNew );
     }
     // rebuild the AIG
@@ -990,6 +1005,7 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
                     Abc_ObjAddFanin( pObjNew, pObjNodeT );
                     Abc_ObjAddFanin( pObjNew, pObjNodeE );
                     pObjNew->pData = Abc_SopCreateMux( (Mem_Flex_t *)pNtkNew->pManFunc );
+                    Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), Gia_ObjId(p, pObj) );
                     nCountMux++;
                 }
             }
@@ -1030,6 +1046,7 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
                 if ( Gia_ObjFaninC1(pObj) )  Abc_SopComplementVar( (char *)pObjNew->pData, 1 );
             }
             pObj->Value = Abc_ObjId( pObjNew );
+            Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), i );
         }
     }
     else
@@ -1077,6 +1094,8 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
             pObjNew->pData = pFunc;
             pObjNew->fPersist = Gia_ObjLutIsMux(p, i) && Gia_ObjLutSize(p, i) == 3;
             pObj->Value = Abc_ObjId( pObjNew );
+            // Preserve Silimate node-retention origins for LUT-mapped nodes.
+            Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), i );
         }
         Vec_PtrFree( vReflect );
     }
@@ -1090,7 +1109,10 @@ Abc_Ntk_t * Abc_NtkFromMappedGiaInt( Gia_Man_t * p, int fFindEnables, int fUseBu
         int fCompl = Gia_ObjFaninC0(pObj) ^ (vCompls && Vec_BitEntry(vCompls, iFanin));
         pObjNew = Abc_NtkObj( pNtkNew, Gia_ObjValue(Gia_ObjFanin0(pObj)) );
         if ( fCheckAnd5 && fCompl && Gia_ObjIsLut(p, iFanin) && Gia_ObjLutSize(p, iFanin) == 5 )
+        {
             pObjNew = Abc_NtkCreateNodeInv( pNtkNew, pObjNew ), fCompl = 0;
+            Nr_ManCopyOrigins( pNtkNew->pNodeRetention, p->pNodeRetention, Abc_ObjId(pObjNew), iFanin );
+        }
         Abc_ObjAddFanin( Abc_NtkCo(pNtkNew, i), Abc_ObjNotCond( pObjNew, fCompl ) );
     }
     // create names
