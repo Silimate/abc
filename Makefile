@@ -55,6 +55,23 @@ MODULES := \
 all: $(PROG)
 default: $(PROG)
 
+# The optional frontend is an independent C++20/CMake build, started after ABC.
+# Forward the requested job count without nesting two competing build pools.
+ifeq ($(ABC_USE_SLANG),1)
+all default: sn-slang
+endif
+SN_BUILD_DIR ?= $(abspath $(ABCSRC))/build/sn-slang-make
+SLANG_JOBS ?= $(or $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS))),1)
+SLANG_CXX ?=
+.PHONY: sn-slang
+sn-slang: $(PROG)
+	cmake -S "$(ABCSRC)/tools/sn" -B "$(SN_BUILD_DIR)" \
+	    -DCMAKE_BUILD_TYPE=Release $(if $(SLANG_CXX),-DCMAKE_CXX_COMPILER="$(SLANG_CXX)") \
+	    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$(abspath .)" \
+	    -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(abspath .)" \
+	    $(if $(SLANG_SOURCE_DIR),-DSLANG_SOURCE_DIR="$(abspath $(SLANG_SOURCE_DIR))")
+	env -u MAKEFLAGS cmake --build "$(SN_BUILD_DIR)" --config Release --target sn --parallel $(SLANG_JOBS)
+
 ARCHFLAGS_EXE ?= ./arch_flags
 
 $(ARCHFLAGS_EXE) : arch_flags.c
@@ -111,6 +128,12 @@ ifndef ABC_USE_NO_PTHREADS
   CFLAGS += -DABC_USE_PTHREADS
   LIBS += -lpthread
   $(call abc_info,$(MSG_PREFIX)Using pthreads)
+endif
+
+# whether to compile without thread-local frame selection
+ifdef ABC_USE_NO_THREAD_LOCAL
+  CFLAGS += -DABC_USE_NO_THREAD_LOCAL=1
+  $(call abc_info,$(MSG_PREFIX)Disabling thread-local frame selection)
 endif
 
 # whether to compile into position independent code

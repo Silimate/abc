@@ -48,13 +48,8 @@ ABC_NAMESPACE_IMPL_START
 ***********************************************************************/
 unsigned Gia_ManRandom( int fReset )
 {
-#ifdef _MSC_VER
-    static unsigned int m_z = NUMBER1;
-    static unsigned int m_w = NUMBER2;
-#else
-    static __thread unsigned int m_z = NUMBER1;
-    static __thread unsigned int m_w = NUMBER2;
-#endif    
+    static ABC_THREAD_LOCAL unsigned int m_z = NUMBER1;
+    static ABC_THREAD_LOCAL unsigned int m_w = NUMBER2;
     if ( fReset )
     {
         m_z = NUMBER1;
@@ -105,7 +100,7 @@ void Gia_ManRandomInfo( Vec_Ptr_t * vInfo, int iInputStart, int iWordStart, int 
 ***********************************************************************/
 char * Gia_TimeStamp()
 {
-    static char Buffer[100];
+    static ABC_THREAD_LOCAL char Buffer[100];
     char * TimeStamp;
     time_t ltime;
     // get the current time
@@ -129,7 +124,7 @@ char * Gia_TimeStamp()
 ***********************************************************************/
 char * Gia_FileNameGenericAppend( char * pBase, char * pSuffix )
 {
-    static char Buffer[1000];
+    static ABC_THREAD_LOCAL char Buffer[1000];
     char * pDot;
     strcpy( Buffer, pBase );
     if ( (pDot = strrchr( Buffer, '.' )) )
@@ -2200,6 +2195,7 @@ void Gia_AigerWriteLut( Gia_Man_t * p, char * pFileName )
         {
             int nSize1 = nLuts * sizeof(Gia_MapLut_t);
             int nSize2 = fwrite( pLuts, 1, nSize1, pFile );
+            (void)nSize2;
             assert( nSize1 == nSize2 );
             printf( "Successfully dumped %d bytes of binary data.\n", nSize1 );
         }
@@ -2853,6 +2849,7 @@ void Gia_ManDumpSuppFile( Vec_Str_t * p, char * pFileName )
         int nIns  = Vec_StrSize(p)/Vec_StrCountEntry(p, '\n') - 1;
         int nSize1 = Vec_StrSize(p) - 1;
         int nSize2 = fwrite( Vec_StrArray(p), 1, nSize1, pFile );
+        (void)nSize2;
         assert( nSize1 == nSize2 );
         printf( "Successfully dumped file \"%s\" with support data for %d outputs and %d inputs.\n", pFileName, nOuts, nIns );
     }
@@ -3421,7 +3418,9 @@ Gia_Man_t * Gia_ManDupInsertWindows( Gia_Man_t * p, Vec_Ptr_t * vvIns, Vec_Ptr_t
     Gia_Man_t * pNew, * pTemp; Gia_Obj_t * pObj; int i, k, iNode;
     Vec_PtrForEachEntry( Gia_Man_t *, vWins, pTemp, i ) {
         Vec_Int_t * vIns  = (Vec_Int_t *)Vec_PtrEntry(vvIns, i);
+        (void)vIns;
         Vec_Int_t * vOuts = (Vec_Int_t *)Vec_PtrEntry(vvOuts, i);
+        (void)vOuts;
         assert( Vec_IntSize(vIns)  == Gia_ManPiNum(pTemp) );
         assert( Vec_IntSize(vOuts) == Gia_ManPoNum(pTemp) );
         assert( !Gia_ManWindowCheckTopoError(p, vIns, vOuts) );        
@@ -3494,6 +3493,7 @@ Gia_Man_t * Gia_ManCreateDualOutputMiter( Gia_Man_t * p0, Gia_Man_t * p1 )
     printf( "The two AIGs have %d structurally equivalent nodes.\n", Gia_ManAndNum(p0) + Gia_ManAndNum(p1) - Gia_ManAndNum(pNew) );
     // there should be no dangling nodes (otherwise, the second AIG may not be structurally hashed)
     int nDangling = Gia_ManMarkDangling(pNew);
+    (void)nDangling;
     assert( nDangling == 0 );
     Gia_ManCleanMark01(pNew);
     return pNew;

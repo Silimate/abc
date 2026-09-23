@@ -27842,7 +27842,8 @@ int Abc_CommandSymFun( Abc_Frame_t * pAbc, int argc, char ** argv )
         printf( "%s\n", pTruth );
     // read the truth table to be the current network in ABC
     pCommand = ABC_CALLOC( char, strlen(pTruth) + 100 );
-    sprintf( pCommand, "read_truth %s", pTruth );
+    memcpy( pCommand, "read_truth ", 11 );
+    memcpy( pCommand + 11, pTruth, strlen(pTruth) + 1 );
     Cmd_CommandExecute( pAbc, pCommand );
     ABC_FREE( pCommand );
     ABC_FREE( pTruth );
@@ -33180,7 +33181,7 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     Pdr_ManSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIXalxrmuyfqipdegjonctkvwzhb" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "MFCDQTHGSLIXalxrmuyfqipdegjonctksvwzhb" ) ) != EOF )
     {
         switch ( c )
         {
@@ -33370,6 +33371,9 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 'k':
             pPars->fUseSimpleRef ^= 1;
             break;
+        case 's':
+            pPars->fUseGipSat ^= 1;
+            break;
         case 'v':
             pPars->fVerbose ^= 1;
             break;
@@ -33423,7 +33427,7 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: pdr [-MFCDQTHGS <num>] [-LI <file>] [-X <prefix>] [-axrmuyfqipdegjonctkvwzh]\n" );
+    Abc_Print( -2, "usage: pdr [-MFCDQTHGS <num>] [-LI <file>] [-X <prefix>] [-axrmuyfqipdegjonctksvwzh]\n" );
     Abc_Print( -2, "\t         model checking using property directed reachability (aka IC3)\n" );
     Abc_Print( -2, "\t         pioneered by Aaron R. Bradley (http://theory.stanford.edu/~arbrad/)\n" );
     Abc_Print( -2, "\t         with improvements by Niklas Een (http://een.se/niklas/)\n" );
@@ -33459,6 +33463,7 @@ usage:
     Abc_Print( -2, "\t-c     : * toggle handling CTGs in \'down\' [default = %s]\n",                           pPars->fCtgs? "yes": "no" );
     Abc_Print( -2, "\t-t     : toggle using abstraction [default = %s]\n",                                   pPars->fUseAbs? "yes": "no" );
     Abc_Print( -2, "\t-k     : toggle using simplified refinement [default = %s]\n",                         pPars->fUseSimpleRef? "yes": "no" );
+    Abc_Print( -2, "\t-s     : toggle using the GipSAT solver (ported from rIC3); -f is recommended [default = %s]\n", pPars->fUseGipSat? "yes": "no" );
     Abc_Print( -2, "\t-v     : toggle printing optimization summary [default = %s]\n",                       pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-w     : toggle printing detailed stats default = %s]\n",                              pPars->fVeryVerbose? "yes": "no" );
     Abc_Print( -2, "\t-z     : toggle suppressing report about solved outputs [default = %s]\n",             pPars->fNotVerbose? "yes": "no" );
@@ -35195,6 +35200,7 @@ int Abc_CommandAbc9Put( Abc_Frame_t * pAbc, int argc, char ** argv )
     // transfer the spec name to the pNtk
     if( pAbc->pGia->pSpec )
     {
+        ABC_FREE( pNtk->pSpec );
         pNtk->pSpec = Extra_UtilStrsav( pAbc->pGia->pSpec );
     }
     // transfer PI names to pNtk
