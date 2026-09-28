@@ -417,7 +417,8 @@ void Abc_NtkStrashPerform( Abc_Ntk_t * pNtkOld, Abc_Ntk_t * pNtkNew, int fAllNod
 {
     Vec_Ptr_t * vNodes;
     Abc_Obj_t * pNodeOld;
-    int i; //, clk = Abc_Clock();
+    Vec_Int_t * vCreators = Vec_IntAlloc( 100 );
+    int i, k, iFirst, iCreator; //, clk = Abc_Clock();
     assert( Abc_NtkIsLogic(pNtkOld) );
     assert( Abc_NtkIsStrash(pNtkNew) );
 //    vNodes = Abc_NtkDfs( pNtkOld, fAllNodes );
@@ -427,6 +428,7 @@ void Abc_NtkStrashPerform( Abc_Ntk_t * pNtkOld, Abc_Ntk_t * pNtkNew, int fAllNod
     // get retention managers (new one should already be set in frame)
     Vec_PtrForEachEntry( Abc_Obj_t *, vNodes, pNodeOld, i )
     {
+        iFirst = Abc_NtkObjNumMax( pNtkNew );
         if ( Abc_ObjIsBarBuf(pNodeOld) )
             pNodeOld->pCopy = Abc_ObjChild0Copy(pNodeOld);
         else
@@ -434,7 +436,16 @@ void Abc_NtkStrashPerform( Abc_Ntk_t * pNtkOld, Abc_Ntk_t * pNtkNew, int fAllNod
         // track mapping: copy origins from old node to new node
         if ( pNodeOld->pCopy )
             Nr_ManCopyOrigins( pNtkNew->pNodeRetention, pNtkOld->pNodeRetention, Abc_ObjId(Abc_ObjRegular(pNodeOld->pCopy)), Abc_ObjId(pNodeOld) );
+        // remember which node's decomposition created each new AND
+        for ( k = iFirst; k < Abc_NtkObjNumMax( pNtkNew ); k++ )
+            Vec_IntSetEntryFull( vCreators, k, Abc_ObjId(pNodeOld) );
     }
+    // an AND no root claimed takes its creator's origins, since a mapper can root a cell on one
+    if ( pNtkNew->pNodeRetention )
+        Vec_IntForEachEntry( vCreators, iCreator, k )
+            if ( iCreator >= 0 && !Nr_ManHasEntry( pNtkNew->pNodeRetention, k ) )
+                Nr_ManCopyOrigins( pNtkNew->pNodeRetention, pNtkOld->pNodeRetention, k, iCreator );
+    Vec_IntFree( vCreators );
     Vec_PtrFree( vNodes );
 }
 
