@@ -280,6 +280,7 @@ Pdr_Man_t * Pdr_ManStart( Aig_Man_t * pAig, Pdr_Par_t * pPars, Vec_Int_t * vPrio
     p->vCi2Rem  = Vec_IntAlloc( 100 );  // CIs to be removed
     p->vRes     = Vec_IntAlloc( 100 );  // final result
     p->pCnfMan  = Cnf_ManStart();
+    pPars->fUseGipSat = 0; // Silimate: GipSAT is removed, so library callers get the default solver
     // GipSAT shared context (static CNF + dep table)
     if ( pPars->fUseGipSat && (pPars->fNewXSim || pPars->fUseAbs || pPars->fUseSimpleRef || pPars->fSimpleGeneral) )
     {

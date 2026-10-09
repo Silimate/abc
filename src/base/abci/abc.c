@@ -32817,6 +32817,10 @@ usage:
 ***********************************************************************/
 int Abc_CommandBm2( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
+    // Silimate: saucy (abcSaucy.c) is removed, as its license is non-commercial only
+    Abc_Print( -1, "bm2: not available in this build.\n" );
+    return 1;
+#if 0
     FILE * pOut, * pErr;
     Abc_Ntk_t *pNtk, *pNtk1, *pNtk2;
     int fDelete1, fDelete2;
@@ -32912,6 +32916,7 @@ usage:
 //    Abc_Print( -2, "\t        \n" );
 
     return 1;
+#endif
 }
 
 /**Function*************************************************************
@@ -32927,6 +32932,10 @@ usage:
 ***********************************************************************/
 int Abc_CommandSaucy( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
+    // Silimate: saucy (abcSaucy.c) is removed, as its license is non-commercial only
+    Abc_Print( -1, "saucy3: not available in this build.\n" );
+    return 1;
+#if 0
     Abc_Ntk_t *pNtk;
     char * outputName = NULL;
     FILE * gFile = NULL;
@@ -33065,6 +33074,7 @@ usage:
     Abc_Print( -2, "\t            Saucy webpage: http://vlsicad.eecs.umich.edu/BK/SAUCY/\n" );
 
     return 1;
+#endif
 }
 
 /**Function*************************************************************
@@ -33381,8 +33391,9 @@ int Abc_CommandPdr( Abc_Frame_t * pAbc, int argc, char ** argv )
             pPars->fUseSimpleRef ^= 1;
             break;
         case 's':
-            pPars->fUseGipSat ^= 1;
-            break;
+            // Silimate: GipSAT (src/proof/pdr/gipsat) is removed, as it derives from GPL-3.0 code
+            Abc_Print( -1, "pdr -s: GipSAT is not available in this build.\n" );
+            return 1;
         case 'v':
             pPars->fVerbose ^= 1;
             break;
@@ -33472,7 +33483,7 @@ usage:
     Abc_Print( -2, "\t-c     : * toggle handling CTGs in \'down\' [default = %s]\n",                           pPars->fCtgs? "yes": "no" );
     Abc_Print( -2, "\t-t     : toggle using abstraction [default = %s]\n",                                   pPars->fUseAbs? "yes": "no" );
     Abc_Print( -2, "\t-k     : toggle using simplified refinement [default = %s]\n",                         pPars->fUseSimpleRef? "yes": "no" );
-    Abc_Print( -2, "\t-s     : toggle using the GipSAT solver (ported from rIC3); -f is recommended [default = %s]\n", pPars->fUseGipSat? "yes": "no" );
+    Abc_Print( -2, "\t-s     : toggle using the GipSAT solver (not available in this build)\n" );
     Abc_Print( -2, "\t-v     : toggle printing optimization summary [default = %s]\n",                       pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-w     : toggle printing detailed stats default = %s]\n",                              pPars->fVeryVerbose? "yes": "no" );
     Abc_Print( -2, "\t-z     : toggle suppressing report about solved outputs [default = %s]\n",             pPars->fNotVerbose? "yes": "no" );
