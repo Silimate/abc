@@ -467,10 +467,6 @@ SOURCE=.\src\base\abci\abcSat.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\src\base\abci\abcSaucy.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\src\base\abci\abcScorr.c
 # End Source File
 # Begin Source File
@@ -7064,46 +7060,6 @@ SOURCE=.\src\proof\live\monotone.c
 # Begin Group "pdr"
 
 # PROP Default_Filter ""
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipAnalyze.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipCdb.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipDomain.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipMain.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipMan.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipProp.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipSearch.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipSimp.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipVsids.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\src\proof\pdr\gipsat\gipsat.h
-# End Source File
 # Begin Source File
 
 SOURCE=.\src\proof\pdr\pdr.h

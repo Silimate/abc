@@ -31,7 +31,6 @@
 #include "pdr.h" 
 #include "misc/hash/hashInt.h"
 #include "aig/gia/giaAig.h"
-#include "gipsat/gipsat.h"
 
 //#define PDR_USE_SATOKO 1
 
@@ -62,6 +61,26 @@
 #define PDR_INF_BOUND ((int)((~((unsigned int)0)) >> 1))
 
 ABC_NAMESPACE_HEADER_START
+
+// Silimate: GipSAT (src/proof/pdr/gipsat) is removed, as it derives from GPL-3.0 code, and
+// `pdr -s` refuses to run; these stubs keep the pdr sources unchanged and are never reached.
+#define GIP_SAT    1
+#define GIP_UNSAT  0
+#define GIP_UNDEF (-1)
+#define Gip_ObjVar( pObj ) Aig_ObjId(pObj)
+typedef struct Gip_Ctx_t_ Gip_Ctx_t;
+typedef struct Gip_Solver_t_ { ABC_INT64_T nConfLimit; abctime TimeLimit; } Gip_Solver_t;
+static inline Gip_Ctx_t *    Gip_CtxCreate( Aig_Man_t * pAig, Cnf_Man_t * pCnfMan )                    { return NULL;      }
+static inline void           Gip_CtxFree( Gip_Ctx_t * p )                                               {                   }
+static inline Gip_Solver_t * Gip_SolverNew( Gip_Ctx_t * pCtx )                                          { return NULL;      }
+static inline void           Gip_SolverFree( Gip_Solver_t * p )                                         {                   }
+static inline void           Gip_SolverAddLemma( Gip_Solver_t * p, int * pLits, int nLits )             {                   }
+static inline int            Gip_SolverSolve( Gip_Solver_t * p, int * pAssump, int nAssump, int ** ppCstCls,
+                                              int * pnCstLits, int nCst, int nRestartLimit )            { return GIP_UNDEF; }
+static inline int            Gip_SolverVarValue( Gip_Solver_t * p, int Var )                            { return 0;         }
+static inline int            Gip_SolverUnsatHas( Gip_Solver_t * p, int Lit )                            { return 0;         }
+static inline void           Gip_SolverSetDomain( Gip_Solver_t * p, int * pLits, int nLits )            {                   }
+static inline void           Gip_SolverUnsetDomain( Gip_Solver_t * p )                                  {                   }
 
 ////////////////////////////////////////////////////////////////////////
 ///                         PARAMETERS                               ///
