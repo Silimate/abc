@@ -53,7 +53,7 @@ check() {
     local name=$1 src=$2 map=$3 expect=$4 d0 d1
     gen "$TMP/$name.blif" "$src"
     d0=$(depth "$TMP/$name.blif" "$map")
-    d1=$(depth "$TMP/$name.blif" "$(echo "$map" | sed 's/\(&if [^;]*\|&nf[^;]*\)/\1 -P/g')")
+    d1=$(depth "$TMP/$name.blif" "$(echo "$map" | sed -e 's/&if [^;]*/& -P/g' -e 's/&nf[^;]*/& -P/g')")
     case $expect in
         shallower) [ "$d1" -lt "$d0" ] || fail "$name: -P depth $d1, without $d0" ;;
         same)      [ "$d1" -eq "$d0" ] || fail "$name: -P depth $d1, without $d0" ;;
