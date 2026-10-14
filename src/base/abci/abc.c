@@ -45121,7 +45121,7 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
     pPars->pLutLib = (If_LibLut_t *)Abc_FrameReadLibLut();
     pPars->pCellLib = (If_LibCell_t *)Abc_FrameReadLibCell();
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFAGRDEWSJTXYZMqalepmrsdbgxyofuijkztncvwh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFAGRDEWSJTXYZMPqalepmrsdbgxyofuijkztncvwh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -45383,6 +45383,9 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
             break;
         case 't':
             pPars->fDoAverage ^= 1;
+            break;
+        case 'P':
+            pPars->fCompReq ^= 1;
             break;
         case 'n':
             pPars->fUseDsd ^= 1;
@@ -45747,7 +45750,7 @@ usage:
         sprintf(LutSize, "library" );
     else
         sprintf(LutSize, "%d", pPars->nLutSize );
-    Abc_Print( -2, "usage: &if [-KCFAGRTXYZM num] [-DEW float] [-SJ str] [-qarlepmsdbgxyofuijkztnchvw]\n" );
+    Abc_Print( -2, "usage: &if [-KCFAGRTXYZM num] [-DEW float] [-SJ str] [-Pqarlepmsdbgxyofuijkztnchvw]\n" );
     Abc_Print( -2, "\t           performs FPGA technology mapping of the network\n" );
     Abc_Print( -2, "\t-K num   : the number of LUT inputs (2 < num < %d) [default = %s]\n", IF_MAX_LUTSIZE+1, LutSize );
     Abc_Print( -2, "\t-C num   : the max number of priority cuts (0 < num < 2^12) [default = %d]\n", pPars->nCutsMax );
@@ -45788,6 +45791,7 @@ usage:
     Abc_Print( -2, "\t-k       : toggles matching based on precomputed DSD manager [default = %s]\n", pPars->fUseDsdTune? "yes": "no" );
     Abc_Print( -2, "\t-z       : toggles deriving LUTs when mapping into LUT structures [default = %s]\n", pPars->fDeriveLuts? "yes": "no" );
     Abc_Print( -2, "\t-t       : toggles optimizing average rather than maximum level [default = %s]\n", pPars->fDoAverage? "yes": "no" );
+    Abc_Print( -2, "\t-P       : toggles relaxing each output only to the latest output it shares logic with [default = %s]\n", pPars->fCompReq? "yes": "no" );
     Abc_Print( -2, "\t-n       : toggles computing DSDs of the cut functions [default = %s]\n", pPars->fUseDsd? "yes": "no" );
     Abc_Print( -2, "\t-c       : toggles computing truth tables in a new way [default = %s]\n", pPars->fUseTtPerm? "yes": "no" );
     Abc_Print( -2, "\t-h       : toggles rehashing AIG after mapping [default = %s]\n", pPars->fHashMapping? "yes": "no" );
@@ -46988,7 +46992,7 @@ int Abc_CommandAbc9Nf( Abc_Frame_t * pAbc, int argc, char ** argv )
     Gia_Man_t * pNew; int c;
     Nf_ManSetDefaultPars( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFARLEDQMWZakpqfvwh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFARLEDQMWZPakpqfvwh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -47128,6 +47132,9 @@ int Abc_CommandAbc9Nf( Abc_Frame_t * pAbc, int argc, char ** argv )
             pPars->ZFile = argv[globalUtilOptind];
             globalUtilOptind++;
             break;
+        case 'P':
+            pPars->fCompReq ^= 1;
+            break;
         case 'a':
             pPars->fAreaOnly ^= 1;
             break;
@@ -47181,7 +47188,7 @@ usage:
         sprintf(Buffer, "best possible" );
     else
         sprintf(Buffer, "%d", pPars->DelayTarget );
-    Abc_Print( -2, "usage: &nf [-KCFARLEDQM num] [-Z file] [-akpqfvwh]\n" );
+    Abc_Print( -2, "usage: &nf [-KCFARLEDQM num] [-Z file] [-Pakpqfvwh]\n" );
     Abc_Print( -2, "\t           performs technology mapping of the network\n" );
     Abc_Print( -2, "\t-K num   : LUT size for the mapping (2 <= K <= %d) [default = %d]\n",                  pPars->nLutSizeMax, pPars->nLutSize );
     Abc_Print( -2, "\t-C num   : the max number of priority cuts (1 <= C <= %d) [default = %d]\n",           pPars->nCutNumMax, pPars->nCutNum );
@@ -47194,6 +47201,7 @@ usage:
     Abc_Print( -2, "\t-Q num   : internal parameter impacting area of the mapping [default = %d]\n",         pPars->nReqTimeFlex );
     Abc_Print( -2, "\t-M num   : the max number of matches to dump into a binary file [default = %d]\n",     pPars->nMaxMatches );
     Abc_Print( -2, "\t-Z file  : the output file name to dump internal match info [default = unused]\n" );
+    Abc_Print( -2, "\t-P       : toggles relaxing each output only to the latest output it shares logic with [default = %s]\n", pPars->fCompReq? "yes": "no" );
     Abc_Print( -2, "\t-a       : toggles SAT-based area-oriented mapping (experimental) [default = %s]\n",   pPars->fAreaOnly? "yes": "no" );
     Abc_Print( -2, "\t-k       : toggles coarsening the subject graph [default = %s]\n",                     pPars->fCoarsen? "yes": "no" );
     Abc_Print( -2, "\t-p       : toggles pin permutation (more matches - better quality) [default = %s]\n",  pPars->fPinPerm? "yes": "no" );

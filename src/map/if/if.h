@@ -149,6 +149,7 @@ struct If_Par_t_
     int                fUseCheck2;    // compute truth tables of the cut functions
     int                fDeriveLuts;   // enables deriving LUT structures
     int                fDoAverage;    // optimize average rather than maximum level
+    int                fCompReq;      // relax each output only to the latest output it shares logic with
     int                fHashMapping;  // perform AIG hashing after mapping
     int                fUserLutDec;   // perform Boolean decomposition during mapping
     int                fUserLut2D;    // perform Boolean decomposition during mapping
