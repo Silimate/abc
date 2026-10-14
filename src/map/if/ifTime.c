@@ -327,6 +327,43 @@ float If_ManDelayMax( If_Man_t * p, int fSeq )
     return DelayBest;
 }
 
+static int If_ManCompFind( Vec_Int_t * vRoot, int i )
+{
+    while ( Vec_IntEntry(vRoot, i) != i )
+    {
+        Vec_IntWriteEntry( vRoot, i, Vec_IntEntry(vRoot, Vec_IntEntry(vRoot, i)) );
+        i = Vec_IntEntry( vRoot, i );
+    }
+    return i;
+}
+// relaxes each CO only to the latest arrival among the COs whose logic it shares
+static void If_ManSetCompRequireds( If_Man_t * p )
+{
+    Vec_Int_t * vRoot = Vec_IntStartNatural( If_ManObjNum(p) );
+    Vec_Flt_t * vMax = Vec_FltStart( If_ManObjNum(p) );
+    float DelayMax = If_ManDelayMax( p, 0 ), Max;
+    If_Obj_t * pObj; int i, k, iRoot;
+    If_ManForEachNode( p, pObj, i )
+    {
+        If_Obj_t * pFans[3] = { pObj->pFanin0, pObj->pFanin1, pObj->pEquiv };
+        for ( k = 0; k < 3; k++ )
+            if ( pFans[k] && If_ObjIsAnd(pFans[k]) )
+                Vec_IntWriteEntry( vRoot, If_ManCompFind(vRoot, pObj->Id), If_ManCompFind(vRoot, pFans[k]->Id) );
+    }
+    If_ManForEachCo( p, pObj, i )
+    {
+        iRoot = If_ManCompFind( vRoot, If_ObjFanin0(pObj)->Id );
+        Vec_FltWriteEntry( vMax, iRoot, Abc_MaxFloat(Vec_FltEntry(vMax, iRoot), If_ObjArrTime(If_ObjFanin0(pObj))) );
+    }
+    If_ManForEachCo( p, pObj, i )
+    {
+        Max = Vec_FltEntry( vMax, If_ManCompFind(vRoot, If_ObjFanin0(pObj)->Id) );
+        If_ObjFanin0(pObj)->Required = Max < DelayMax - p->fEpsilon ? IF_MIN(Max * (100.0 + p->pPars->nRelaxRatio) / 100.0, p->RequiredGlo) : p->RequiredGlo;
+    }
+    Vec_IntFree( vRoot );
+    Vec_FltFree( vMax );
+}
+
 /**Function*************************************************************
 
   Synopsis    [Computes the required times of all nodes.]
@@ -408,7 +445,9 @@ void If_ManComputeRequired( If_Man_t * p )
             if ( p->pPars->fAreaOnly ) 
                 return;
             // set the required times for the POs
-            if ( p->pPars->fDoAverage )
+            if ( p->pPars->fCompReq )
+                If_ManSetCompRequireds( p );
+            else if ( p->pPars->fDoAverage )
             {
                 if ( p->pPars->nRelaxRatio )
                 {

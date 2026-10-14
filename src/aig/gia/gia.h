@@ -369,6 +369,7 @@ struct Jf_Par_t_
     int            fCnfMapping;
     int            fPureAig;
     int            fDoAverage;
+    int            fCompReq;
     int            fCutHashing;
     int            fCutSimple;
     int            fCutGroup;

@@ -1447,6 +1447,42 @@ void Nf_ManComputeMapping( Nf_Man_t * p )
 }
 
 
+static int Nf_ManCompFind( Vec_Int_t * vRoot, int i )
+{
+    while ( Vec_IntEntry(vRoot, i) != i )
+    {
+        Vec_IntWriteEntry( vRoot, i, Vec_IntEntry(vRoot, Vec_IntEntry(vRoot, i)) );
+        i = Vec_IntEntry( vRoot, i );
+    }
+    return i;
+}
+// returns, for each CO, the latest arrival among the COs whose logic it shares
+static Vec_Int_t * Nf_ManCompArrivals( Nf_Man_t * p )
+{
+    Gia_Man_t * pGia = p->pGia;
+    Vec_Int_t * vRoot = Vec_IntStartNatural( Gia_ManObjNum(pGia) );
+    Vec_Int_t * vMax = Vec_IntStart( Gia_ManObjNum(pGia) );
+    Vec_Int_t * vArr = Vec_IntStart( Gia_ManCoNum(pGia) );
+    Gia_Obj_t * pObj; int i, k, iRoot;
+    Gia_ManForEachAnd( pGia, pObj, i )
+    {
+        int pFans[4] = { Gia_ObjFaninId0(pObj, i), Gia_ObjFaninId1(pObj, i), Gia_ObjFaninId2(pGia, i), Gia_ObjSibl(pGia, i) };
+        for ( k = 0; k < 4; k++ )
+            if ( pFans[k] > 0 && Gia_ObjIsAnd(Gia_ManObj(pGia, pFans[k])) )
+                Vec_IntWriteEntry( vRoot, Nf_ManCompFind(vRoot, i), Nf_ManCompFind(vRoot, pFans[k]) );
+    }
+    Gia_ManForEachCo( pGia, pObj, i )
+    {
+        iRoot = Nf_ManCompFind( vRoot, Gia_ObjFaninId0p(pGia, pObj) );
+        Vec_IntUpdateEntry( vMax, iRoot, Nf_ObjMatchD(p, Gia_ObjFaninId0p(pGia, pObj), Gia_ObjFaninC0(pObj))->D );
+    }
+    Gia_ManForEachCo( pGia, pObj, i )
+        Vec_IntWriteEntry( vArr, i, Vec_IntEntry(vMax, Nf_ManCompFind(vRoot, Gia_ObjFaninId0p(pGia, pObj))) );
+    Vec_IntFree( vRoot );
+    Vec_IntFree( vMax );
+    return vArr;
+}
+
 /**Function*************************************************************
 
   Synopsis    []
@@ -1463,7 +1499,8 @@ void Nf_ManSetOutputRequireds( Nf_Man_t * p, int fPropCompl )
     Gia_Obj_t * pObj;
     int Required = 0, MapDelayOld = p->pPars->MapDelay;
     int fUseConMan = Scl_ConIsRunning() && Scl_ConHasOutReqs();
-    int i, iObj, fCompl, nLits = 2*Gia_ManObjNum(p->pGia);
+    int i, iObj, fCompl, DelayMax, nLits = 2*Gia_ManObjNum(p->pGia);
+    Vec_Int_t * vCompArr = p->pPars->fCompReq && !p->pManTim ? Nf_ManCompArrivals( p ) : NULL;
     Vec_IntFill( &p->vRequired, nLits, SCL_INFINITY );
     // compute delay
     p->pPars->MapDelay = 0;
@@ -1472,6 +1509,7 @@ void Nf_ManSetOutputRequireds( Nf_Man_t * p, int fPropCompl )
         Required = Nf_ObjMatchD( p, Gia_ObjFaninId0p(p->pGia, pObj), Gia_ObjFaninC0(pObj) )->D;
         p->pPars->MapDelay = Abc_MaxInt( p->pPars->MapDelay, Required );
     }
+    DelayMax = p->pPars->MapDelay;
     if ( p->Iter && MapDelayOld < p->pPars->MapDelay && p->pGia->vOutReqs == NULL )
         printf( "******** Critical delay violation %.2f -> %.2f ********\n", Scl_Int2Flt(MapDelayOld), Scl_Int2Flt(p->pPars->MapDelay) ); 
     p->pPars->MapDelay = Abc_MaxInt( p->pPars->MapDelay, MapDelayOld );
@@ -1494,7 +1532,10 @@ void Nf_ManSetOutputRequireds( Nf_Man_t * p, int fPropCompl )
         iObj     = Gia_ObjFaninId0p(p->pGia, pObj);
         fCompl   = Gia_ObjFaninC0(pObj);
         Required = Nf_ObjMatchD(p, iObj, fCompl)->D;
-        Required = p->pPars->fDoAverage ? Required * (100 + p->pPars->nRelaxRatio) / 100 : p->pPars->MapDelay;
+        if ( vCompArr && Vec_IntEntry(vCompArr, i) < DelayMax )
+            Required = Abc_MinInt( Vec_IntEntry(vCompArr, i) * (100 + p->pPars->nRelaxRatio) / 100, p->pPars->MapDelay );
+        else
+            Required = p->pPars->fDoAverage ? Required * (100 + p->pPars->nRelaxRatio) / 100 : p->pPars->MapDelay;
         // if external required time can be achieved, use it
         if ( fUseConMan )
         {
@@ -1523,6 +1564,7 @@ void Nf_ManSetOutputRequireds( Nf_Man_t * p, int fPropCompl )
             Tim_ManSetCoRequired( p->pManTim, Gia_ObjCioId(pObj), Required );
         //Nf_ObjMapRefInc( p, Gia_ObjFaninId0p(p->pGia, pObj), Gia_ObjFaninC0(pObj));
     }
+    Vec_IntFreeP( &vCompArr );
 }
 void Nf_ManSetMapRefsGate( Nf_Man_t * p, int iObj, int Required, Nf_Mat_t * pM )
 {
