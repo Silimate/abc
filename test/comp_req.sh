@@ -68,4 +68,26 @@ check nf_shared_input   r0 "&nf"                               shallower
 check if_shared_gate    s7 "&if -K 4"                          same
 check nf_shared_gate    s7 "&nf"                               same
 
+# A boxed network, as Yosys's abc9 hands it over (comp_req_box.v): arbiter g shares no logic
+# with a 64-step chain, and arbiter g2 starts the chain through a box. -P relaxes g only to its
+# own depth, or with -D to the target; g2 keeps the chain's, since a box joins the logic on
+# either side of it.
+printf "1 1 1\n2 1 1\n3 1 1\n4 1 1\n5 1 1\n6 1 1\n" > "$TMP/lut6.txt"
+printf "bx 4 1 2 1\n#a b\n1 1 # y\n" > "$TMP/bx.box"
+
+# depth of the 16 outputs from CO $1 after &if $2 (g2 starts at CO 5, g at CO 21)
+box_depth() {
+    "$ABC" -q "read_lut $TMP/lut6.txt; read_box $TMP/bx.box; &read $(dirname "$0")/comp_req_box.xaig; &st; &if -g -K 6; &synch2; &if $2; &put; cone -O $1 -R 16; cleanup; ps" |
+        tail -1 | sed 's/.*lev = *//'
+}
+
+d0=$(box_depth 21 ""); d1=$(box_depth 21 -P); d2=$(box_depth 21 "-P -D 6")
+[ "$d1" -lt "$d0" ] || fail "box_independent: -P depth $d1, without $d0"
+echo "PASS: box_independent (&if: $d0 -> $d1)"
+[ "$d1" -lt "$d2" ] && [ "$d2" -le 6 ] || fail "box_floor: -P -D 6 depth $d2, -P $d1"
+echo "PASS: box_floor (&if -P -D 6: $d2)"
+d0=$(box_depth 5 ""); d1=$(box_depth 5 -P)
+[ "$d1" -eq "$d0" ] || fail "box_coupled: -P depth $d1, without $d0"
+echo "PASS: box_coupled (&if: $d0 -> $d1)"
+
 echo "All regression tests passed."
