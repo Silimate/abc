@@ -45791,7 +45791,7 @@ usage:
     Abc_Print( -2, "\t-k       : toggles matching based on precomputed DSD manager [default = %s]\n", pPars->fUseDsdTune? "yes": "no" );
     Abc_Print( -2, "\t-z       : toggles deriving LUTs when mapping into LUT structures [default = %s]\n", pPars->fDeriveLuts? "yes": "no" );
     Abc_Print( -2, "\t-t       : toggles optimizing average rather than maximum level [default = %s]\n", pPars->fDoAverage? "yes": "no" );
-    Abc_Print( -2, "\t-P       : toggles relaxing each output only to the latest output it shares logic with [default = %s]\n", pPars->fCompReq? "yes": "no" );
+    Abc_Print( -2, "\t-P       : toggles relaxing each output only to the latest output it shares logic with, directly or through a box, and with -D to no less than the target [default = %s]\n", pPars->fCompReq? "yes": "no" );
     Abc_Print( -2, "\t-n       : toggles computing DSDs of the cut functions [default = %s]\n", pPars->fUseDsd? "yes": "no" );
     Abc_Print( -2, "\t-c       : toggles computing truth tables in a new way [default = %s]\n", pPars->fUseTtPerm? "yes": "no" );
     Abc_Print( -2, "\t-h       : toggles rehashing AIG after mapping [default = %s]\n", pPars->fHashMapping? "yes": "no" );

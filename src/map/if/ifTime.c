@@ -336,30 +336,58 @@ static int If_ManCompFind( Vec_Int_t * vRoot, int i )
     }
     return i;
 }
-// relaxes each CO only to the latest arrival among the COs whose logic it shares
+static void If_ManCompUnion( Vec_Int_t * vRoot, int i, int k )
+{
+    Vec_IntWriteEntry( vRoot, If_ManCompFind(vRoot, i), If_ManCompFind(vRoot, k) );
+}
+// an AND node or a box output shares logic; a register or a primary input does not
+static int If_ManCompShares( If_Man_t * p, If_Obj_t * pObj )
+{
+    return If_ObjIsAnd(pObj) || (If_ObjIsCi(pObj) && p->pManTim && Tim_ManBoxForCi(p->pManTim, pObj->IdPio) >= 0);
+}
+// relaxes each CO only to the latest arrival among the COs whose logic it shares, directly or
+// through a box, and with -D to no less than the target; box inputs take theirs through their boxes
 static void If_ManSetCompRequireds( If_Man_t * p )
 {
     Vec_Int_t * vRoot = Vec_IntStartNatural( If_ManObjNum(p) );
     Vec_Flt_t * vMax = Vec_FltStart( If_ManObjNum(p) );
     float DelayMax = If_ManDelayMax( p, 0 ), Max;
-    If_Obj_t * pObj; int i, k, iRoot;
+    If_Obj_t * pObj; int i, k, iBox, iOut;
     If_ManForEachNode( p, pObj, i )
     {
         If_Obj_t * pFans[3] = { pObj->pFanin0, pObj->pFanin1, pObj->pEquiv };
         for ( k = 0; k < 3; k++ )
-            if ( pFans[k] && If_ObjIsAnd(pFans[k]) )
-                Vec_IntWriteEntry( vRoot, If_ManCompFind(vRoot, pObj->Id), If_ManCompFind(vRoot, pFans[k]->Id) );
+            if ( pFans[k] && If_ManCompShares(p, pFans[k]) )
+                If_ManCompUnion( vRoot, pObj->Id, pFans[k]->Id );
+    }
+    // a box joins the logic driving its inputs to the logic its outputs drive
+    for ( iBox = 0; p->pManTim && iBox < Tim_ManBoxNum(p->pManTim); iBox++ )
+    {
+        if ( Tim_ManBoxOutputNum(p->pManTim, iBox) == 0 )
+            continue;
+        iOut = If_ManCi( p, Tim_ManBoxOutputFirst(p->pManTim, iBox) )->Id;
+        for ( k = 1; k < Tim_ManBoxOutputNum(p->pManTim, iBox); k++ )
+            If_ManCompUnion( vRoot, iOut, If_ManCi(p, Tim_ManBoxOutputFirst(p->pManTim, iBox) + k)->Id );
+        for ( k = 0; k < Tim_ManBoxInputNum(p->pManTim, iBox); k++ )
+            if ( If_ManCompShares(p, (pObj = If_ObjFanin0(If_ManCo(p, Tim_ManBoxInputFirst(p->pManTim, iBox) + k)))) )
+                If_ManCompUnion( vRoot, iOut, pObj->Id );
     }
     If_ManForEachCo( p, pObj, i )
-    {
-        iRoot = If_ManCompFind( vRoot, If_ObjFanin0(pObj)->Id );
-        Vec_FltWriteEntry( vMax, iRoot, Abc_MaxFloat(Vec_FltEntry(vMax, iRoot), If_ObjArrTime(If_ObjFanin0(pObj))) );
-    }
+        if ( !p->pManTim || Tim_ManBoxForCo(p->pManTim, i) < 0 )
+        {
+            iOut = If_ManCompFind( vRoot, If_ObjFanin0(pObj)->Id );
+            Vec_FltWriteEntry( vMax, iOut, Abc_MaxFloat(Vec_FltEntry(vMax, iOut), If_ObjArrTime(If_ObjFanin0(pObj))) );
+        }
     If_ManForEachCo( p, pObj, i )
-    {
-        Max = Vec_FltEntry( vMax, If_ManCompFind(vRoot, If_ObjFanin0(pObj)->Id) );
-        If_ObjFanin0(pObj)->Required = Max < DelayMax - p->fEpsilon ? IF_MIN(Max * (100.0 + p->pPars->nRelaxRatio) / 100.0, p->RequiredGlo) : p->RequiredGlo;
-    }
+        if ( !p->pManTim || Tim_ManBoxForCo(p->pManTim, i) < 0 )
+        {
+            Max = Abc_MaxFloat( Vec_FltEntry(vMax, If_ManCompFind(vRoot, If_ObjFanin0(pObj)->Id)), p->pPars->DelayTarget );
+            Max = Max < DelayMax - p->fEpsilon ? IF_MIN(Max * (100.0 + p->pPars->nRelaxRatio) / 100.0, p->RequiredGlo) : p->RequiredGlo;
+            if ( p->pManTim )
+                Tim_ManSetCoRequired( p->pManTim, i, Max );
+            else
+                If_ObjFanin0(pObj)->Required = Max;
+        }
     Vec_IntFree( vRoot );
     Vec_FltFree( vMax );
 }
@@ -423,7 +451,7 @@ void If_ManComputeRequired( If_Man_t * p )
             {
                 if ( p->RequiredGlo > p->pPars->DelayTarget + p->fEpsilon )
                 {
-                    if ( p->fNextRound == 0 )
+                    if ( p->fNextRound == 0 && !p->pPars->fCompReq ) // under -P the target is only a floor
                     {
                         p->fNextRound = 1;
                         Abc_Print( 0, "Cannot meet the target required times (%4.2f). Mapping continues anyway.\n", p->pPars->DelayTarget );
@@ -495,7 +523,7 @@ void If_ManComputeRequired( If_Man_t * p )
         {
             if ( p->RequiredGlo > p->pPars->DelayTarget + p->fEpsilon )
             {
-                if ( p->fNextRound == 0 )
+                if ( p->fNextRound == 0 && !p->pPars->fCompReq ) // under -P the target is only a floor
                 {
                     p->fNextRound = 1;
                     Abc_Print( 0, "Cannot meet the target required times (%4.2f). Mapping continues anyway.\n", p->pPars->DelayTarget );
@@ -554,6 +582,8 @@ void If_ManComputeRequired( If_Man_t * p )
                 else assert( 0 );
             }
         }
+        else if ( p->pPars->fCompReq )
+            If_ManSetCompRequireds( p );
         else if ( p->pPars->fDoAverage )
         {
             if ( p->pPars->nRelaxRatio )
