@@ -347,9 +347,14 @@ static int If_ManCompShares( If_Man_t * p, If_Obj_t * pObj )
 }
 // relaxes each CO only to the latest arrival among the COs whose logic it shares, directly or
 // through a box, and with -D to no less than the target; box inputs take theirs through their boxes.
-// With -H, a node of more fanouts than that shares nothing, so a hub (a valid, an enable) does not
-// tie every cone it feeds into one group; with -Q, no CO relaxes more than that percent past the
-// earliest arrival it had in the delay rounds, however late its group, though never below -D
+// With -H, a node of more fanouts than that (AND, choice and CO, box inputs included) shares nothing,
+// so a hub (a valid, an enable) does not tie every cone it feeds into one group; with -Q, no CO relaxes
+// more than that percent past the earliest arrival it had in the delay rounds, however late its group,
+// though never below -D
+static int If_ManCompHub( If_Obj_t * pObj, Vec_Int_t * vCoFans, int nHub )
+{
+    return nHub && pObj->nVisitsCopy + Vec_IntEntry(vCoFans, pObj->Id) > nHub;
+}
 static void If_ManSetCompRequireds( If_Man_t * p )
 {
     Vec_Int_t * vRoot = Vec_IntStartNatural( If_ManObjNum(p) );
@@ -357,6 +362,11 @@ static void If_ManSetCompRequireds( If_Man_t * p )
     float DelayMax = If_ManDelayMax( p, 0 ), Max;
     If_Obj_t * pObj; int i, k, iBox, iOut;
     int nHub = p->pPars->nCompReqHub;
+    // nVisitsCopy counts AND and choice fanouts only; a CO adds none
+    Vec_Int_t * vCoFans = nHub ? Vec_IntStart( If_ManObjNum(p) ) : NULL;
+    if ( nHub )
+        If_ManForEachCo( p, pObj, i )
+            Vec_IntAddToEntry( vCoFans, If_ObjFanin0(pObj)->Id, 1 );
     // -Q: each CO's earliest arrival over the delay rounds, the first one or the three preprocessing ones
     if ( p->pPars->nCompReqSlack && p->nCoArrRefs < (p->pPars->fPreprocess ? 3 : 1) )
     {
@@ -371,7 +381,7 @@ static void If_ManSetCompRequireds( If_Man_t * p )
     {
         If_Obj_t * pFans[3] = { pObj->pFanin0, pObj->pFanin1, pObj->pEquiv };
         for ( k = 0; k < 3; k++ )
-            if ( pFans[k] && If_ManCompShares(p, pFans[k]) && (nHub == 0 || pFans[k]->nVisitsCopy <= nHub) )
+            if ( pFans[k] && If_ManCompShares(p, pFans[k]) && !If_ManCompHub(pFans[k], vCoFans, nHub) )
                 If_ManCompUnion( vRoot, pObj->Id, pFans[k]->Id );
     }
     // a box joins the logic driving its inputs to the logic its outputs drive
@@ -383,7 +393,7 @@ static void If_ManSetCompRequireds( If_Man_t * p )
         for ( k = 1; k < Tim_ManBoxOutputNum(p->pManTim, iBox); k++ )
             If_ManCompUnion( vRoot, iOut, If_ManCi(p, Tim_ManBoxOutputFirst(p->pManTim, iBox) + k)->Id );
         for ( k = 0; k < Tim_ManBoxInputNum(p->pManTim, iBox); k++ )
-            if ( If_ManCompShares(p, (pObj = If_ObjFanin0(If_ManCo(p, Tim_ManBoxInputFirst(p->pManTim, iBox) + k)))) && (nHub == 0 || pObj->nVisitsCopy <= nHub) )
+            if ( If_ManCompShares(p, (pObj = If_ObjFanin0(If_ManCo(p, Tim_ManBoxInputFirst(p->pManTim, iBox) + k)))) && !If_ManCompHub(pObj, vCoFans, nHub) )
                 If_ManCompUnion( vRoot, iOut, pObj->Id );
     }
     If_ManForEachCo( p, pObj, i )
@@ -405,6 +415,7 @@ static void If_ManSetCompRequireds( If_Man_t * p )
                 If_ObjFanin0(pObj)->Required = Max;
         }
     Vec_IntFree( vRoot );
+    Vec_IntFreeP( &vCoFans );
     Vec_FltFree( vMax );
 }
 

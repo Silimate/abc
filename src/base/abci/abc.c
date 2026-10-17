@@ -45104,6 +45104,16 @@ usage:
   SeeAlso     []
 
 ***********************************************************************/
+// a whole decimal nonnegative integer, so a missing value cannot swallow the next switch
+static int Abc_CommandIfNonNegInt( char * pStr, int * pValue )
+{
+    char * pEnd;
+    long Value = strtol( pStr, &pEnd, 10 );
+    if ( pEnd == pStr || *pEnd || Value < 0 || Value > ABC_INFINITY )
+        return 0;
+    *pValue = (int)Value;
+    return 1;
+}
 int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
     char Buffer[200];
@@ -45385,26 +45395,20 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
             pPars->fDoAverage ^= 1;
             break;
         case 'Q':
-            if ( globalUtilOptind >= argc )
+            if ( globalUtilOptind >= argc || !Abc_CommandIfNonNegInt(argv[globalUtilOptind], &pPars->nCompReqSlack) )
             {
-                Abc_Print( -1, "Command line switch \"-Q\" should be followed by a positive integer.\n" );
+                Abc_Print( -1, "Command line switch \"-Q\" should be followed by a nonnegative integer.\n" );
                 goto usage;
             }
-            pPars->nCompReqSlack = atoi(argv[globalUtilOptind]);
             globalUtilOptind++;
-            if ( pPars->nCompReqSlack < 0 )
-                goto usage;
             break;
         case 'H':
-            if ( globalUtilOptind >= argc )
+            if ( globalUtilOptind >= argc || !Abc_CommandIfNonNegInt(argv[globalUtilOptind], &pPars->nCompReqHub) )
             {
-                Abc_Print( -1, "Command line switch \"-H\" should be followed by a positive integer.\n" );
+                Abc_Print( -1, "Command line switch \"-H\" should be followed by a nonnegative integer.\n" );
                 goto usage;
             }
-            pPars->nCompReqHub = atoi(argv[globalUtilOptind]);
             globalUtilOptind++;
-            if ( pPars->nCompReqHub < 0 )
-                goto usage;
             break;
         case 'P':
             pPars->fCompReq ^= 1;

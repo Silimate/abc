@@ -148,5 +148,30 @@ echo "PASS: hub_deep (a: $da)"
 "$ABC" -q "read_blif $TMP/hub.blif; strash; &get -n; &if -K 6 -Q 20" 2>&1 | grep -q 'only with "-P"' ||
     fail "hub_needs_P: &if -Q without -P"
 echo "PASS: hub_needs_P"
+# A hub counted by all its fanouts: rdy drives nine outputs directly and one AND into a deep
+# cone, so only one of its ten fanouts is an AND. -H 8 still keeps it out of the groups (h at its
+# own depth); -H 16 does not.
+{
+    echo ".model cohub"
+    printf ".inputs"; for i in $(seq 0 15); do printf " x$i"; done
+    for i in $(seq 0 255); do printf " y$i"; done; echo
+    printf ".outputs"; for i in $(seq 0 8); do printf " h$i"; done; echo " a"
+    xtree rdy $(for k in $(seq 0 15); do printf " x$k"; done)
+    for i in $(seq 0 8); do printf ".names rdy h$i\n1 1\n"; done
+    xtree xa $(for k in $(seq 0 255); do printf " y$k"; done)
+    printf ".names rdy xa a\n11 1\n.end\n"
+} > "$TMP/cohub.blif"
+cohub_depth() {
+    "$ABC" -q "read_blif $TMP/cohub.blif; strash; &get -n; &st; &if -g -K 6; &synch2; &if -K 6 $1; &put; cone -O 0 -R 9; cleanup; ps" |
+        tail -1 | sed 's/.*lev = *//'
+}
+dp=$(cohub_depth -P); d8=$(cohub_depth "-P -H 8"); d16=$(cohub_depth "-P -H 16")
+[ "$d8" -lt "$dp" ] && [ "$d16" -eq "$dp" ] || fail "hub_co_fanouts: -P $dp, -P -H 8 $d8, -P -H 16 $d16"
+echo "PASS: hub_co_fanouts (&if -P: $dp -> -P -H 8: $d8)"
+for f in -Q -H; do
+    "$ABC" -q "read_blif $TMP/hub.blif; strash; &get -n; &if -K 6 $f -P" 2>&1 | grep -q 'nonnegative integer' ||
+        fail "hub_missing_value: &if $f -P took -P as its value"
+done
+echo "PASS: hub_missing_value"
 
 echo "All regression tests passed."
