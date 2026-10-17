@@ -150,6 +150,8 @@ struct If_Par_t_
     int                fDeriveLuts;   // enables deriving LUT structures
     int                fDoAverage;    // optimize average rather than maximum level
     int                fCompReq;      // relax each output only to the latest output it shares logic with
+    int                nCompReqSlack; // with fCompReq: relax no output more than this percent past its own delay-optimal arrival (0 = unused)
+    int                nCompReqHub;   // with fCompReq: a node with more fanouts than this joins no group (0 = unused)
     int                fHashMapping;  // perform AIG hashing after mapping
     int                fUserLutDec;   // perform Boolean decomposition during mapping
     int                fUserLut2D;    // perform Boolean decomposition during mapping
@@ -316,6 +318,8 @@ struct If_Man_t_
     // timing manager
     Tim_Man_t *        pManTim;
     Vec_Int_t *        vCoAttrs;      // CO attributes   0=optimize; 1=keep; 2=relax
+    Vec_Flt_t *        vCoArrRef;     // each CO's earliest arrival over the delay rounds (nCompReqSlack)
+    int                nCoArrRefs;    // the delay rounds folded into vCoArrRef
     // node retention manager
     Nr_Man_t *         pNodeRetention;
     // hash table for functions
