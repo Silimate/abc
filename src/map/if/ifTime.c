@@ -346,18 +346,42 @@ static int If_ManCompShares( If_Man_t * p, If_Obj_t * pObj )
     return If_ObjIsAnd(pObj) || (If_ObjIsCi(pObj) && p->pManTim && Tim_ManBoxForCi(p->pManTim, pObj->IdPio) >= 0);
 }
 // relaxes each CO only to the latest arrival among the COs whose logic it shares, directly or
-// through a box, and with -D to no less than the target; box inputs take theirs through their boxes
+// through a box, and with -D to no less than the target; box inputs take theirs through their boxes.
+// With -H, a node of more fanouts than that (AND, choice and CO, box inputs included) shares nothing,
+// so a hub (a valid, an enable) does not tie every cone it feeds into one group; with -Q, no CO relaxes
+// more than that percent past the earliest arrival it had in the delay rounds, however late its group,
+// though never below -D
+static int If_ManCompHub( If_Obj_t * pObj, Vec_Int_t * vCoFans, int nHub )
+{
+    return nHub && pObj->nVisitsCopy + Vec_IntEntry(vCoFans, pObj->Id) > nHub;
+}
 static void If_ManSetCompRequireds( If_Man_t * p )
 {
     Vec_Int_t * vRoot = Vec_IntStartNatural( If_ManObjNum(p) );
     Vec_Flt_t * vMax = Vec_FltStart( If_ManObjNum(p) );
     float DelayMax = If_ManDelayMax( p, 0 ), Max;
     If_Obj_t * pObj; int i, k, iBox, iOut;
+    int nHub = p->pPars->nCompReqHub;
+    // nVisitsCopy counts AND and choice fanouts only; a CO adds none
+    Vec_Int_t * vCoFans = nHub ? Vec_IntStart( If_ManObjNum(p) ) : NULL;
+    if ( nHub )
+        If_ManForEachCo( p, pObj, i )
+            Vec_IntAddToEntry( vCoFans, If_ObjFanin0(pObj)->Id, 1 );
+    // -Q: each CO's earliest arrival over the delay rounds, the first one or the three preprocessing ones
+    if ( p->pPars->nCompReqSlack && p->nCoArrRefs < (p->pPars->fPreprocess ? 3 : 1) )
+    {
+        if ( p->vCoArrRef == NULL )
+            p->vCoArrRef = Vec_FltStart( If_ManCoNum(p) );
+        If_ManForEachCo( p, pObj, i )
+            if ( p->nCoArrRefs == 0 || If_ObjArrTime(If_ObjFanin0(pObj)) < Vec_FltEntry(p->vCoArrRef, i) )
+                Vec_FltWriteEntry( p->vCoArrRef, i, If_ObjArrTime(If_ObjFanin0(pObj)) );
+        p->nCoArrRefs++;
+    }
     If_ManForEachNode( p, pObj, i )
     {
         If_Obj_t * pFans[3] = { pObj->pFanin0, pObj->pFanin1, pObj->pEquiv };
         for ( k = 0; k < 3; k++ )
-            if ( pFans[k] && If_ManCompShares(p, pFans[k]) )
+            if ( pFans[k] && If_ManCompShares(p, pFans[k]) && !If_ManCompHub(pFans[k], vCoFans, nHub) )
                 If_ManCompUnion( vRoot, pObj->Id, pFans[k]->Id );
     }
     // a box joins the logic driving its inputs to the logic its outputs drive
@@ -369,7 +393,7 @@ static void If_ManSetCompRequireds( If_Man_t * p )
         for ( k = 1; k < Tim_ManBoxOutputNum(p->pManTim, iBox); k++ )
             If_ManCompUnion( vRoot, iOut, If_ManCi(p, Tim_ManBoxOutputFirst(p->pManTim, iBox) + k)->Id );
         for ( k = 0; k < Tim_ManBoxInputNum(p->pManTim, iBox); k++ )
-            if ( If_ManCompShares(p, (pObj = If_ObjFanin0(If_ManCo(p, Tim_ManBoxInputFirst(p->pManTim, iBox) + k)))) )
+            if ( If_ManCompShares(p, (pObj = If_ObjFanin0(If_ManCo(p, Tim_ManBoxInputFirst(p->pManTim, iBox) + k)))) && !If_ManCompHub(pObj, vCoFans, nHub) )
                 If_ManCompUnion( vRoot, iOut, pObj->Id );
     }
     If_ManForEachCo( p, pObj, i )
@@ -383,12 +407,15 @@ static void If_ManSetCompRequireds( If_Man_t * p )
         {
             Max = Abc_MaxFloat( Vec_FltEntry(vMax, If_ManCompFind(vRoot, If_ObjFanin0(pObj)->Id)), p->pPars->DelayTarget );
             Max = Max < DelayMax - p->fEpsilon ? IF_MIN(Max * (100.0 + p->pPars->nRelaxRatio) / 100.0, p->RequiredGlo) : p->RequiredGlo;
+            if ( p->pPars->nCompReqSlack )
+                Max = Abc_MinFloat( Max, Abc_MaxFloat(Vec_FltEntry(p->vCoArrRef, i) * (100.0 + p->pPars->nCompReqSlack) / 100.0, p->pPars->DelayTarget) );
             if ( p->pManTim )
                 Tim_ManSetCoRequired( p->pManTim, i, Max );
             else
                 If_ObjFanin0(pObj)->Required = Max;
         }
     Vec_IntFree( vRoot );
+    Vec_IntFreeP( &vCoFans );
     Vec_FltFree( vMax );
 }
 

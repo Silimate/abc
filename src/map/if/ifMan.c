@@ -350,6 +350,7 @@ int If_ManDumpData( If_Man_t * p, FILE * pFile )
 ***********************************************************************/
 void If_ManStop( If_Man_t * p )
 {
+    Vec_FltFreeP( &p->vCoArrRef );
     if ( p->pPars->fDumpFile && p->pPars->nLutSize <= 6 ) 
     {
         char pFileName[1000] = {0};

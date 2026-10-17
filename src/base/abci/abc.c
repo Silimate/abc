@@ -45104,6 +45104,16 @@ usage:
   SeeAlso     []
 
 ***********************************************************************/
+// a whole decimal nonnegative integer, so a missing value cannot swallow the next switch
+static int Abc_CommandIfNonNegInt( char * pStr, int * pValue )
+{
+    char * pEnd;
+    long Value = strtol( pStr, &pEnd, 10 );
+    if ( pEnd == pStr || *pEnd || Value < 0 || Value > ABC_INFINITY )
+        return 0;
+    *pValue = (int)Value;
+    return 1;
+}
 int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
     char Buffer[200];
@@ -45121,7 +45131,7 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
     pPars->pLutLib = (If_LibLut_t *)Abc_FrameReadLibLut();
     pPars->pCellLib = (If_LibCell_t *)Abc_FrameReadLibCell();
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFAGRDEWSJTXYZMPqalepmrsdbgxyofuijkztncvwh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "KCFAGRDEWSJTXYZMQHPqalepmrsdbgxyofuijkztncvwh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -45384,6 +45394,22 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 't':
             pPars->fDoAverage ^= 1;
             break;
+        case 'Q':
+            if ( globalUtilOptind >= argc || !Abc_CommandIfNonNegInt(argv[globalUtilOptind], &pPars->nCompReqSlack) )
+            {
+                Abc_Print( -1, "Command line switch \"-Q\" should be followed by a nonnegative integer.\n" );
+                goto usage;
+            }
+            globalUtilOptind++;
+            break;
+        case 'H':
+            if ( globalUtilOptind >= argc || !Abc_CommandIfNonNegInt(argv[globalUtilOptind], &pPars->nCompReqHub) )
+            {
+                Abc_Print( -1, "Command line switch \"-H\" should be followed by a nonnegative integer.\n" );
+                goto usage;
+            }
+            globalUtilOptind++;
+            break;
         case 'P':
             pPars->fCompReq ^= 1;
             break;
@@ -45405,6 +45431,12 @@ int Abc_CommandAbc9If( Abc_Frame_t * pAbc, int argc, char ** argv )
         default:
             goto usage;
         }
+    }
+
+    if ( (pPars->nCompReqSlack || pPars->nCompReqHub) && !pPars->fCompReq )
+    {
+        Abc_Print( -1, "Switches \"-Q\" and \"-H\" apply only with \"-P\".\n" );
+        return 1;
     }
 
     // Auto-detect K from cell library when -j is used
@@ -45750,7 +45782,7 @@ usage:
         sprintf(LutSize, "library" );
     else
         sprintf(LutSize, "%d", pPars->nLutSize );
-    Abc_Print( -2, "usage: &if [-KCFAGRTXYZM num] [-DEW float] [-SJ str] [-Pqarlepmsdbgxyofuijkztnchvw]\n" );
+    Abc_Print( -2, "usage: &if [-KCFAGRTXYZMQH num] [-DEW float] [-SJ str] [-Pqarlepmsdbgxyofuijkztnchvw]\n" );
     Abc_Print( -2, "\t           performs FPGA technology mapping of the network\n" );
     Abc_Print( -2, "\t-K num   : the number of LUT inputs (2 < num < %d) [default = %s]\n", IF_MAX_LUTSIZE+1, LutSize );
     Abc_Print( -2, "\t-C num   : the max number of priority cuts (0 < num < 2^12) [default = %d]\n", pPars->nCutsMax );
@@ -45762,6 +45794,8 @@ usage:
     Abc_Print( -2, "\t-X num   : delay of AND-gate in LUT library units [default = %d]\n", pPars->nAndDelay );
     Abc_Print( -2, "\t-Y num   : area of AND-gate in LUT library units [default = %d]\n", pPars->nAndArea );
     Abc_Print( -2, "\t-M num   : enables delay-driven decomposition [default = %d]\n", pPars->fDelayOptCell );
+    Abc_Print( -2, "\t-Q num   : with -P, relaxes no output more than num percent past its own delay-optimal arrival, though not below -D (0 = unused) [default = %d]\n", pPars->nCompReqSlack );
+    Abc_Print( -2, "\t-H num   : with -P, a node with more than num fanouts joins no output group (0 = unused) [default = %d]\n", pPars->nCompReqHub );
     Abc_Print( -2, "\t-D float : sets the delay constraint for the mapping [default = %s]\n", Buffer );
     Abc_Print( -2, "\t-E float : sets epsilon used for tie-breaking [default = %f]\n", pPars->Epsilon );
     Abc_Print( -2, "\t-W float : sets wire delay between adjects LUTs [default = %f]\n", pPars->WireDelay );

@@ -90,4 +90,88 @@ d0=$(box_depth 5 ""); d1=$(box_depth 5 -P)
 [ "$d1" -eq "$d0" ] || fail "box_coupled: -P depth $d1, without $d0"
 echo "PASS: box_coupled (&if: $d0 -> $d1)"
 
+
+# A hub: nine 9-input cones b share only one AND gate (rdy = ar & br, 10 fanouts) with a
+# 258-input cone a. -P joins them in one group, so area recovery relaxes b toward a's depth;
+# -H 8 keeps the hub out of the groups and b at its own depth, -H 16 does not, and -Q 20 caps b
+# near its own delay-optimal arrival unless -D floors it higher.
+# $1 = output name, then the signals: a balanced XOR tree
+xtree() {
+    local out=$1 lvl=0 i next; shift
+    local sigs=("$@")
+    while [ ${#sigs[@]} -gt 1 ]; do
+        next=()
+        for ((i = 0; i + 1 < ${#sigs[@]}; i += 2)); do
+            printf ".names %s %s %s_%d_%d\n10 1\n01 1\n" "${sigs[i]}" "${sigs[i+1]}" "$out" $lvl $i
+            next+=("${out}_${lvl}_$i")
+        done
+        [ $((${#sigs[@]} % 2)) -eq 0 ] || next+=("${sigs[${#sigs[@]}-1]}")
+        sigs=("${next[@]}"); lvl=$((lvl + 1))
+    done
+    printf ".names %s %s\n1 1\n" "${sigs[0]}" "$out"
+}
+{
+    echo ".model hub"
+    printf ".inputs ar br"; for i in $(seq 0 15); do printf " x$i"; done
+    for i in $(seq 0 255); do printf " y$i"; done; echo
+    printf ".outputs"; for i in $(seq 0 8); do printf " b$i"; done; echo " a"
+    printf ".names ar br rdy\n11 1\n"
+    for i in $(seq 0 8); do
+        xtree xb$i $(for k in $(seq $i $((i + 7))); do printf " x$k"; done)
+        printf ".names rdy xb$i b$i\n11 1\n"
+    done
+    xtree xa $(for k in $(seq 0 255); do printf " y$k"; done)
+    printf ".names rdy xa a\n11 1\n.end\n"
+} > "$TMP/hub.blif"
+
+# depth of the b outputs (or with $2 = a, of a) after the abc9 flow's mapping with &if $1
+hub_depth() {
+    local cone="-O 0 -R 9"; [ "${2:-}" = a ] && cone="-O 9 -R 1"
+    "$ABC" -q "read_blif $TMP/hub.blif; strash; &get -n; &st; &if -g -K 6; &synch2; &if -K 6 $1; &put; cone $cone; cleanup; ps" |
+        tail -1 | sed 's/.*lev = *//'
+}
+
+dp=$(hub_depth -P); d8=$(hub_depth "-P -H 8"); d16=$(hub_depth "-P -H 16"); dq=$(hub_depth "-P -Q 20")
+[ "$d8" -lt "$dp" ] || fail "hub_cap: -P -H 8 depth $d8, -P $dp"
+echo "PASS: hub_cap (&if -P: $dp -> -P -H 8: $d8)"
+[ "$d16" -eq "$dp" ] || fail "hub_below_cap: -P -H 16 depth $d16, -P $dp"
+echo "PASS: hub_below_cap (&if -P -H 16: $d16)"
+[ "$dq" -lt "$dp" ] || fail "hub_slack: -P -Q 20 depth $dq, -P $dp"
+echo "PASS: hub_slack (&if -P -Q 20: $dq)"
+da=$(hub_depth -P a); d=$(hub_depth "-P -Q 20 -D $da")
+[ "$d" -eq "$(hub_depth "-P -D $da")" ] || fail "hub_slack_floor: -P -Q 20 -D $da depth $d"
+echo "PASS: hub_slack_floor (&if -P -Q 20 -D $da: $d)"
+for f in "-H 8" "-Q 20"; do
+    [ "$(hub_depth "-P $f" a)" -eq "$da" ] || fail "hub_deep: -P $f changes a's depth $da"
+done
+echo "PASS: hub_deep (a: $da)"
+"$ABC" -q "read_blif $TMP/hub.blif; strash; &get -n; &if -K 6 -Q 20" 2>&1 | grep -q 'only with "-P"' ||
+    fail "hub_needs_P: &if -Q without -P"
+echo "PASS: hub_needs_P"
+# A hub counted by all its fanouts: rdy drives nine outputs directly and one AND into a deep
+# cone, so only one of its ten fanouts is an AND. -H 8 still keeps it out of the groups (h at its
+# own depth); -H 16 does not.
+{
+    echo ".model cohub"
+    printf ".inputs"; for i in $(seq 0 15); do printf " x$i"; done
+    for i in $(seq 0 255); do printf " y$i"; done; echo
+    printf ".outputs"; for i in $(seq 0 8); do printf " h$i"; done; echo " a"
+    xtree rdy $(for k in $(seq 0 15); do printf " x$k"; done)
+    for i in $(seq 0 8); do printf ".names rdy h$i\n1 1\n"; done
+    xtree xa $(for k in $(seq 0 255); do printf " y$k"; done)
+    printf ".names rdy xa a\n11 1\n.end\n"
+} > "$TMP/cohub.blif"
+cohub_depth() {
+    "$ABC" -q "read_blif $TMP/cohub.blif; strash; &get -n; &st; &if -g -K 6; &synch2; &if -K 6 $1; &put; cone -O 0 -R 9; cleanup; ps" |
+        tail -1 | sed 's/.*lev = *//'
+}
+dp=$(cohub_depth -P); d8=$(cohub_depth "-P -H 8"); d16=$(cohub_depth "-P -H 16")
+[ "$d8" -lt "$dp" ] && [ "$d16" -eq "$dp" ] || fail "hub_co_fanouts: -P $dp, -P -H 8 $d8, -P -H 16 $d16"
+echo "PASS: hub_co_fanouts (&if -P: $dp -> -P -H 8: $d8)"
+for f in -Q -H; do
+    "$ABC" -q "read_blif $TMP/hub.blif; strash; &get -n; &if -K 6 $f -P" 2>&1 | grep -q 'nonnegative integer' ||
+        fail "hub_missing_value: &if $f -P took -P as its value"
+done
+echo "PASS: hub_missing_value"
+
 echo "All regression tests passed."
