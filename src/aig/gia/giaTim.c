@@ -280,29 +280,43 @@ Gia_Man_t * Gia_ManDupUnshuffleInputs( Gia_Man_t * p )
 ***********************************************************************/
 int Gia_ManOrderWithBoxes_rec( Gia_Man_t * p, Gia_Obj_t * pObj, Vec_Int_t * vNodes )
 {
+    int iSibl;
     if ( Gia_ObjIsTravIdCurrent(p, pObj) )
         return 0;
     Gia_ObjSetTravIdCurrent(p, pObj);
     if ( Gia_ObjIsCi(pObj) )
     {
         p->iData2 = Gia_ObjCioId(pObj);
+        // the output of a box not placed yet: unmark it, and the objects on the failed path,
+        // so that they are ordered once the box is
+        Gia_ObjSetTravIdPrevious(p, pObj);
         return 1;
     }
     assert( Gia_ObjIsAnd(pObj) );
     if ( Gia_ObjIsBuf(pObj) )
     {
         if ( Gia_ManOrderWithBoxes_rec( p, Gia_ObjFanin0(pObj), vNodes ) )
+        {
+            Gia_ObjSetTravIdPrevious(p, pObj);
             return 1;
+        }
         Vec_IntPush( vNodes, Gia_ObjId(p, pObj) );
         return 0;
     }
-    if ( Gia_ObjSibl(p, Gia_ObjId(p, pObj)) )
-        if ( Gia_ManOrderWithBoxes_rec( p, Gia_ObjSiblObj(p, Gia_ObjId(p, pObj)), vNodes ) )
-            return 1;
-    if ( Gia_ManOrderWithBoxes_rec( p, Gia_ObjFanin0(pObj), vNodes ) )
+    // choices are computed with box outputs as free inputs, so a choice node may depend on
+    // the output of a box this node feeds; drop such a choice instead of failing
+    iSibl = Gia_ObjSibl(p, Gia_ObjId(p, pObj));
+    if ( iSibl && Gia_ManOrderWithBoxes_rec( p, Gia_ManObj(p, iSibl), vNodes ) )
+    {
+        p->pSibls[Gia_ObjId(p, pObj)] = p->pSibls[iSibl];
+        p->pSibls[iSibl] = 0;
+    }
+    if ( Gia_ManOrderWithBoxes_rec( p, Gia_ObjFanin0(pObj), vNodes ) ||
+         Gia_ManOrderWithBoxes_rec( p, Gia_ObjFanin1(pObj), vNodes ) )
+    {
+        Gia_ObjSetTravIdPrevious(p, pObj);
         return 1;
-    if ( Gia_ManOrderWithBoxes_rec( p, Gia_ObjFanin1(pObj), vNodes ) )
-        return 1;
+    }
     Vec_IntPush( vNodes, Gia_ObjId(p, pObj) );
     return 0;
 }
