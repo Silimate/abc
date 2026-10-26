@@ -44,6 +44,7 @@ jobs:
       run: |
         ./abc -c "r i10.aig; b; ps; b; rw -l; rw -lz; b; rw -lz; b; ps; cec"
         ABC=./abc bash test/comp_req.sh
+        ABC=./abc bash test/box_choices.sh
 
     - name: Build Library
       run: |
