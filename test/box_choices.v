@@ -11,5 +11,5 @@ endmodule
 module t(input c, d, output y, z);
   // z equals the box input c & d, but is built from the box output y
   bx k(.a(c & d), .y(y));
-  assign z = (c & (d & y)) | (d & (c & ~y));
+  assign z = ((c | ~d) & (d & y)) | (d & (c & ~y));
 endmodule
