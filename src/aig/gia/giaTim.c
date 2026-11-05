@@ -305,9 +305,14 @@ int Gia_ManOrderWithBoxes_rec( Gia_Man_t * p, Gia_Obj_t * pObj, Vec_Int_t * vNod
     }
     // choices are computed with box outputs as free inputs, so a choice node may depend on
     // the output of a box this node feeds; drop such a choice instead of failing
-    iSibl = Gia_ObjSibl(p, Gia_ObjId(p, pObj));
-    if ( iSibl && Gia_ManOrderWithBoxes_rec( p, Gia_ManObj(p, iSibl), vNodes ) )
+    while ( (iSibl = Gia_ObjSibl(p, Gia_ObjId(p, pObj))) )
     {
+        int nNodes = Vec_IntSize(vNodes);
+        if ( !Gia_ManOrderWithBoxes_rec( p, Gia_ManObj(p, iSibl), vNodes ) )
+            break;
+        // also take back what it ordered, and order the rest of the class again
+        while ( Vec_IntSize(vNodes) > nNodes )
+            Gia_ObjSetTravIdPrevious( p, Gia_ManObj(p, Vec_IntPop(vNodes)) );
         p->pSibls[Gia_ObjId(p, pObj)] = p->pSibls[iSibl];
         p->pSibls[iSibl] = 0;
     }
