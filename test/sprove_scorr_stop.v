@@ -1,0 +1,92 @@
+// Source of sprove_scorr_stop.aig, a non-equivalent sequential miter: output P is 0 until
+// cycle 120 (bmc3 asserts it in frame 120), built so shallow random simulation sees every
+// flop as a constant-0 candidate. 40 parallel shift chains, each started at a distinct
+// counter value; P is the OR of all chain ends. Generated with yosys:
+//   read_verilog -sv sprove_scorr_stop.v; hierarchy -top top
+//   proc; flatten; opt; memory; opt; techmap; opt; dffunmap; aigmap; opt_clean
+//   write_aiger -zinit sprove_scorr_stop.aig
+module top(input CLK, output P);
+  reg [7:0] cnt = 0;
+  always @(posedge CLK) cnt <= cnt + 1;
+  reg [119:0] ch0 = 0;  wire t0 = (cnt == 0);
+  always @(posedge CLK) ch0 <= {ch0[118:0], t0};
+  reg [119:0] ch1 = 0;  wire t1 = (cnt == 1);
+  always @(posedge CLK) ch1 <= {ch1[118:0], t1};
+  reg [119:0] ch2 = 0;  wire t2 = (cnt == 2);
+  always @(posedge CLK) ch2 <= {ch2[118:0], t2};
+  reg [119:0] ch3 = 0;  wire t3 = (cnt == 3);
+  always @(posedge CLK) ch3 <= {ch3[118:0], t3};
+  reg [119:0] ch4 = 0;  wire t4 = (cnt == 4);
+  always @(posedge CLK) ch4 <= {ch4[118:0], t4};
+  reg [119:0] ch5 = 0;  wire t5 = (cnt == 5);
+  always @(posedge CLK) ch5 <= {ch5[118:0], t5};
+  reg [119:0] ch6 = 0;  wire t6 = (cnt == 6);
+  always @(posedge CLK) ch6 <= {ch6[118:0], t6};
+  reg [119:0] ch7 = 0;  wire t7 = (cnt == 7);
+  always @(posedge CLK) ch7 <= {ch7[118:0], t7};
+  reg [119:0] ch8 = 0;  wire t8 = (cnt == 8);
+  always @(posedge CLK) ch8 <= {ch8[118:0], t8};
+  reg [119:0] ch9 = 0;  wire t9 = (cnt == 9);
+  always @(posedge CLK) ch9 <= {ch9[118:0], t9};
+  reg [119:0] ch10 = 0;  wire t10 = (cnt == 10);
+  always @(posedge CLK) ch10 <= {ch10[118:0], t10};
+  reg [119:0] ch11 = 0;  wire t11 = (cnt == 11);
+  always @(posedge CLK) ch11 <= {ch11[118:0], t11};
+  reg [119:0] ch12 = 0;  wire t12 = (cnt == 12);
+  always @(posedge CLK) ch12 <= {ch12[118:0], t12};
+  reg [119:0] ch13 = 0;  wire t13 = (cnt == 13);
+  always @(posedge CLK) ch13 <= {ch13[118:0], t13};
+  reg [119:0] ch14 = 0;  wire t14 = (cnt == 14);
+  always @(posedge CLK) ch14 <= {ch14[118:0], t14};
+  reg [119:0] ch15 = 0;  wire t15 = (cnt == 15);
+  always @(posedge CLK) ch15 <= {ch15[118:0], t15};
+  reg [119:0] ch16 = 0;  wire t16 = (cnt == 16);
+  always @(posedge CLK) ch16 <= {ch16[118:0], t16};
+  reg [119:0] ch17 = 0;  wire t17 = (cnt == 17);
+  always @(posedge CLK) ch17 <= {ch17[118:0], t17};
+  reg [119:0] ch18 = 0;  wire t18 = (cnt == 18);
+  always @(posedge CLK) ch18 <= {ch18[118:0], t18};
+  reg [119:0] ch19 = 0;  wire t19 = (cnt == 19);
+  always @(posedge CLK) ch19 <= {ch19[118:0], t19};
+  reg [119:0] ch20 = 0;  wire t20 = (cnt == 20);
+  always @(posedge CLK) ch20 <= {ch20[118:0], t20};
+  reg [119:0] ch21 = 0;  wire t21 = (cnt == 21);
+  always @(posedge CLK) ch21 <= {ch21[118:0], t21};
+  reg [119:0] ch22 = 0;  wire t22 = (cnt == 22);
+  always @(posedge CLK) ch22 <= {ch22[118:0], t22};
+  reg [119:0] ch23 = 0;  wire t23 = (cnt == 23);
+  always @(posedge CLK) ch23 <= {ch23[118:0], t23};
+  reg [119:0] ch24 = 0;  wire t24 = (cnt == 24);
+  always @(posedge CLK) ch24 <= {ch24[118:0], t24};
+  reg [119:0] ch25 = 0;  wire t25 = (cnt == 25);
+  always @(posedge CLK) ch25 <= {ch25[118:0], t25};
+  reg [119:0] ch26 = 0;  wire t26 = (cnt == 26);
+  always @(posedge CLK) ch26 <= {ch26[118:0], t26};
+  reg [119:0] ch27 = 0;  wire t27 = (cnt == 27);
+  always @(posedge CLK) ch27 <= {ch27[118:0], t27};
+  reg [119:0] ch28 = 0;  wire t28 = (cnt == 28);
+  always @(posedge CLK) ch28 <= {ch28[118:0], t28};
+  reg [119:0] ch29 = 0;  wire t29 = (cnt == 29);
+  always @(posedge CLK) ch29 <= {ch29[118:0], t29};
+  reg [119:0] ch30 = 0;  wire t30 = (cnt == 30);
+  always @(posedge CLK) ch30 <= {ch30[118:0], t30};
+  reg [119:0] ch31 = 0;  wire t31 = (cnt == 31);
+  always @(posedge CLK) ch31 <= {ch31[118:0], t31};
+  reg [119:0] ch32 = 0;  wire t32 = (cnt == 32);
+  always @(posedge CLK) ch32 <= {ch32[118:0], t32};
+  reg [119:0] ch33 = 0;  wire t33 = (cnt == 33);
+  always @(posedge CLK) ch33 <= {ch33[118:0], t33};
+  reg [119:0] ch34 = 0;  wire t34 = (cnt == 34);
+  always @(posedge CLK) ch34 <= {ch34[118:0], t34};
+  reg [119:0] ch35 = 0;  wire t35 = (cnt == 35);
+  always @(posedge CLK) ch35 <= {ch35[118:0], t35};
+  reg [119:0] ch36 = 0;  wire t36 = (cnt == 36);
+  always @(posedge CLK) ch36 <= {ch36[118:0], t36};
+  reg [119:0] ch37 = 0;  wire t37 = (cnt == 37);
+  always @(posedge CLK) ch37 <= {ch37[118:0], t37};
+  reg [119:0] ch38 = 0;  wire t38 = (cnt == 38);
+  always @(posedge CLK) ch38 <= {ch38[118:0], t38};
+  reg [119:0] ch39 = 0;  wire t39 = (cnt == 39);
+  always @(posedge CLK) ch39 <= {ch39[118:0], t39};
+  assign P = ch0[119] | ch1[119] | ch2[119] | ch3[119] | ch4[119] | ch5[119] | ch6[119] | ch7[119] | ch8[119] | ch9[119] | ch10[119] | ch11[119] | ch12[119] | ch13[119] | ch14[119] | ch15[119] | ch16[119] | ch17[119] | ch18[119] | ch19[119] | ch20[119] | ch21[119] | ch22[119] | ch23[119] | ch24[119] | ch25[119] | ch26[119] | ch27[119] | ch28[119] | ch29[119] | ch30[119] | ch31[119] | ch32[119] | ch33[119] | ch34[119] | ch35[119] | ch36[119] | ch37[119] | ch38[119] | ch39[119];
+endmodule

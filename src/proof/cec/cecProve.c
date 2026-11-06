@@ -711,6 +711,16 @@ static void Cec_SproveTraceCheckpoint( Cec_SproveTrace_t * pTrace, int NetId, Gi
         return;
     Cec_SproveTraceWrite( pTrace, "CHECKPOINT net=%s regs=%d ands=%d pos=%d", Cec_SproveNetName(NetId), Gia_ManRegNum(pNet), Gia_ManAndNum(pNet), Gia_ManPoNum(pNet) );
 }
+// A reduction proves the miter only when every output is constant 0. Having no AND nodes is not
+// enough: an output can still be driven by constant 1, a primary input or a flop.
+static int Cec_SproveAllPosConst0( Gia_Man_t * p )
+{
+    int i;
+    for ( i = 0; i < Gia_ManPoNum(p); i++ )
+        if ( !Gia_ManPoIsConst0(p, i) )
+            return 0;
+    return 1;
+}
 static Gia_Man_t * Cec_SproveRunReduce( Gia_Man_t * pInput, Cec_SproveStage_t * pStage, Par_Share_t * pShare, Cec_SproveTrace_t * pTrace, abctime * pClkUsed, int * pRetValue, int * pRetEngine )
 {
     Cec_ScorrStop_t Stop;
@@ -728,7 +738,14 @@ static Gia_Man_t * Cec_SproveRunReduce( Gia_Man_t * pInput, Cec_SproveStage_t * 
         pOutput = Cec_GiaScorrOld( pInput, pStage->ReduceTimeout, pShare, &Stop );
     else
         assert( 0 );
-    if ( Gia_ManAndNum(pOutput) == 0 )
+    if ( Stop.fStoppedByCallback || Stop.fStoppedByTimeout )
+    {
+        // Interrupted before it converged, so the candidate equivalences are not proven and
+        // the reduced AIG is unsound. Discard it and continue from the original.
+        Gia_ManStopP( &pOutput );
+        pOutput = Gia_ManDup( pInput );
+    }
+    else if ( Cec_SproveAllPosConst0(pOutput) )
     {
         pShare->fSolved = 1;
         pShare->Result  = 1;
