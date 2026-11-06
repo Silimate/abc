@@ -2,20 +2,19 @@
 // reduction is trusted as a proof.
 //
 // "&sprove" runs "&scorr" (scnew) concurrently with its solver engines, under a stop
-// callback (first-stage timeout -T, or "another engine finished"). When the callback
-// interrupts the reduction before it converges, the candidate equivalences it has
-// collected are NOT yet proven inductive. &sprove nonetheless uses the reduced AIG: if
-// it has 0 ANDs it declares UNSATISFIABLE, and later stages solve on it.
+// callback. When a solver engine finds the real counterexample (or the first-stage
+// timeout -T fires), the callback interrupts the reduction. Its candidate equivalences
+// are then NOT yet proven inductive, but &sprove uses the reduced AIG anyway: if it has
+// 0 ANDs it declares UNSATISFIABLE -- even overwriting a correct SATISFIABLE that a
+// solver engine just found.
 //
 // This miter has a single property output P that is 0 for the first 120 cycles and
-// becomes 1 at cycle 120 (bmc3 finds the assertion in frame 120, so the miter is NOT
-// equivalent / P is SATISFIABLE). It is 80 parallel shift chains of length 120, each
-// triggered at a distinct, deep counter value that shallow random simulation never
-// reaches; P is the OR of all chain ends. Every chain flop therefore looks like a
-// constant-0 candidate, and the reduction needs ~120 refinement iterations over ~9600
-// flops to peel them apart -- long enough that "&sprove -T 1" interrupts it with the
-// chains still merged. The interrupted sweep collapses the whole miter to a constant 0
-// and &sprove reports:
+// becomes 1 at cycle 120, so it is NOT equivalent (P is SATISFIABLE; bmc3 asserts the
+// output in frame 120). It is 40 parallel shift chains of length 120 (~4800 flops), each
+// triggered at a distinct counter value that shallow random simulation never reaches; P
+// is the OR of all chain ends. Every chain flop therefore looks like a constant-0
+// candidate, so a sweep that is interrupted before it has refined them merges them all
+// and collapses the miter to a constant 0. &sprove then reports:
 //
 //     &read sprove_scorr_stop.aig; &sprove -T 1
 //     => "... is UNSATISFIABLE (solved by scnew)."     (WRONG; the miter is SAT)
@@ -112,85 +111,5 @@ module top(input CLK, output P);
   always @(posedge CLK) ch38 <= {ch38[118:0], t38};
   reg [119:0] ch39 = 0;  wire t39 = (cnt == 39);
   always @(posedge CLK) ch39 <= {ch39[118:0], t39};
-  reg [119:0] ch40 = 0;  wire t40 = (cnt == 40);
-  always @(posedge CLK) ch40 <= {ch40[118:0], t40};
-  reg [119:0] ch41 = 0;  wire t41 = (cnt == 41);
-  always @(posedge CLK) ch41 <= {ch41[118:0], t41};
-  reg [119:0] ch42 = 0;  wire t42 = (cnt == 42);
-  always @(posedge CLK) ch42 <= {ch42[118:0], t42};
-  reg [119:0] ch43 = 0;  wire t43 = (cnt == 43);
-  always @(posedge CLK) ch43 <= {ch43[118:0], t43};
-  reg [119:0] ch44 = 0;  wire t44 = (cnt == 44);
-  always @(posedge CLK) ch44 <= {ch44[118:0], t44};
-  reg [119:0] ch45 = 0;  wire t45 = (cnt == 45);
-  always @(posedge CLK) ch45 <= {ch45[118:0], t45};
-  reg [119:0] ch46 = 0;  wire t46 = (cnt == 46);
-  always @(posedge CLK) ch46 <= {ch46[118:0], t46};
-  reg [119:0] ch47 = 0;  wire t47 = (cnt == 47);
-  always @(posedge CLK) ch47 <= {ch47[118:0], t47};
-  reg [119:0] ch48 = 0;  wire t48 = (cnt == 48);
-  always @(posedge CLK) ch48 <= {ch48[118:0], t48};
-  reg [119:0] ch49 = 0;  wire t49 = (cnt == 49);
-  always @(posedge CLK) ch49 <= {ch49[118:0], t49};
-  reg [119:0] ch50 = 0;  wire t50 = (cnt == 50);
-  always @(posedge CLK) ch50 <= {ch50[118:0], t50};
-  reg [119:0] ch51 = 0;  wire t51 = (cnt == 51);
-  always @(posedge CLK) ch51 <= {ch51[118:0], t51};
-  reg [119:0] ch52 = 0;  wire t52 = (cnt == 52);
-  always @(posedge CLK) ch52 <= {ch52[118:0], t52};
-  reg [119:0] ch53 = 0;  wire t53 = (cnt == 53);
-  always @(posedge CLK) ch53 <= {ch53[118:0], t53};
-  reg [119:0] ch54 = 0;  wire t54 = (cnt == 54);
-  always @(posedge CLK) ch54 <= {ch54[118:0], t54};
-  reg [119:0] ch55 = 0;  wire t55 = (cnt == 55);
-  always @(posedge CLK) ch55 <= {ch55[118:0], t55};
-  reg [119:0] ch56 = 0;  wire t56 = (cnt == 56);
-  always @(posedge CLK) ch56 <= {ch56[118:0], t56};
-  reg [119:0] ch57 = 0;  wire t57 = (cnt == 57);
-  always @(posedge CLK) ch57 <= {ch57[118:0], t57};
-  reg [119:0] ch58 = 0;  wire t58 = (cnt == 58);
-  always @(posedge CLK) ch58 <= {ch58[118:0], t58};
-  reg [119:0] ch59 = 0;  wire t59 = (cnt == 59);
-  always @(posedge CLK) ch59 <= {ch59[118:0], t59};
-  reg [119:0] ch60 = 0;  wire t60 = (cnt == 60);
-  always @(posedge CLK) ch60 <= {ch60[118:0], t60};
-  reg [119:0] ch61 = 0;  wire t61 = (cnt == 61);
-  always @(posedge CLK) ch61 <= {ch61[118:0], t61};
-  reg [119:0] ch62 = 0;  wire t62 = (cnt == 62);
-  always @(posedge CLK) ch62 <= {ch62[118:0], t62};
-  reg [119:0] ch63 = 0;  wire t63 = (cnt == 63);
-  always @(posedge CLK) ch63 <= {ch63[118:0], t63};
-  reg [119:0] ch64 = 0;  wire t64 = (cnt == 64);
-  always @(posedge CLK) ch64 <= {ch64[118:0], t64};
-  reg [119:0] ch65 = 0;  wire t65 = (cnt == 65);
-  always @(posedge CLK) ch65 <= {ch65[118:0], t65};
-  reg [119:0] ch66 = 0;  wire t66 = (cnt == 66);
-  always @(posedge CLK) ch66 <= {ch66[118:0], t66};
-  reg [119:0] ch67 = 0;  wire t67 = (cnt == 67);
-  always @(posedge CLK) ch67 <= {ch67[118:0], t67};
-  reg [119:0] ch68 = 0;  wire t68 = (cnt == 68);
-  always @(posedge CLK) ch68 <= {ch68[118:0], t68};
-  reg [119:0] ch69 = 0;  wire t69 = (cnt == 69);
-  always @(posedge CLK) ch69 <= {ch69[118:0], t69};
-  reg [119:0] ch70 = 0;  wire t70 = (cnt == 70);
-  always @(posedge CLK) ch70 <= {ch70[118:0], t70};
-  reg [119:0] ch71 = 0;  wire t71 = (cnt == 71);
-  always @(posedge CLK) ch71 <= {ch71[118:0], t71};
-  reg [119:0] ch72 = 0;  wire t72 = (cnt == 72);
-  always @(posedge CLK) ch72 <= {ch72[118:0], t72};
-  reg [119:0] ch73 = 0;  wire t73 = (cnt == 73);
-  always @(posedge CLK) ch73 <= {ch73[118:0], t73};
-  reg [119:0] ch74 = 0;  wire t74 = (cnt == 74);
-  always @(posedge CLK) ch74 <= {ch74[118:0], t74};
-  reg [119:0] ch75 = 0;  wire t75 = (cnt == 75);
-  always @(posedge CLK) ch75 <= {ch75[118:0], t75};
-  reg [119:0] ch76 = 0;  wire t76 = (cnt == 76);
-  always @(posedge CLK) ch76 <= {ch76[118:0], t76};
-  reg [119:0] ch77 = 0;  wire t77 = (cnt == 77);
-  always @(posedge CLK) ch77 <= {ch77[118:0], t77};
-  reg [119:0] ch78 = 0;  wire t78 = (cnt == 78);
-  always @(posedge CLK) ch78 <= {ch78[118:0], t78};
-  reg [119:0] ch79 = 0;  wire t79 = (cnt == 79);
-  always @(posedge CLK) ch79 <= {ch79[118:0], t79};
-  assign P = ch0[119] | ch1[119] | ch2[119] | ch3[119] | ch4[119] | ch5[119] | ch6[119] | ch7[119] | ch8[119] | ch9[119] | ch10[119] | ch11[119] | ch12[119] | ch13[119] | ch14[119] | ch15[119] | ch16[119] | ch17[119] | ch18[119] | ch19[119] | ch20[119] | ch21[119] | ch22[119] | ch23[119] | ch24[119] | ch25[119] | ch26[119] | ch27[119] | ch28[119] | ch29[119] | ch30[119] | ch31[119] | ch32[119] | ch33[119] | ch34[119] | ch35[119] | ch36[119] | ch37[119] | ch38[119] | ch39[119] | ch40[119] | ch41[119] | ch42[119] | ch43[119] | ch44[119] | ch45[119] | ch46[119] | ch47[119] | ch48[119] | ch49[119] | ch50[119] | ch51[119] | ch52[119] | ch53[119] | ch54[119] | ch55[119] | ch56[119] | ch57[119] | ch58[119] | ch59[119] | ch60[119] | ch61[119] | ch62[119] | ch63[119] | ch64[119] | ch65[119] | ch66[119] | ch67[119] | ch68[119] | ch69[119] | ch70[119] | ch71[119] | ch72[119] | ch73[119] | ch74[119] | ch75[119] | ch76[119] | ch77[119] | ch78[119] | ch79[119];
+  assign P = ch0[119] | ch1[119] | ch2[119] | ch3[119] | ch4[119] | ch5[119] | ch6[119] | ch7[119] | ch8[119] | ch9[119] | ch10[119] | ch11[119] | ch12[119] | ch13[119] | ch14[119] | ch15[119] | ch16[119] | ch17[119] | ch18[119] | ch19[119] | ch20[119] | ch21[119] | ch22[119] | ch23[119] | ch24[119] | ch25[119] | ch26[119] | ch27[119] | ch28[119] | ch29[119] | ch30[119] | ch31[119] | ch32[119] | ch33[119] | ch34[119] | ch35[119] | ch36[119] | ch37[119] | ch38[119] | ch39[119];
 endmodule
