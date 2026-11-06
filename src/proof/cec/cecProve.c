@@ -730,13 +730,8 @@ static Gia_Man_t * Cec_SproveRunReduce( Gia_Man_t * pInput, Cec_SproveStage_t * 
         assert( 0 );
     if ( Stop.fStoppedByCallback || Stop.fStoppedByTimeout )
     {
-        // The signal-correspondence reduction was interrupted (by the first-stage timeout
-        // or because another engine finished) before it converged, so its candidate
-        // equivalences are not proven. Trusting the reduced AIG here would be unsound: an
-        // interrupted sweep can merge candidates that only look equivalent and collapse a
-        // non-equivalent miter to 0 ANDs (reported below as a false UNSAT), or hand a later
-        // stage an unsound miter that yields a spurious counter-example. Discard the partial
-        // reduction and continue from the original AIG instead.
+        // Interrupted before it converged, so the candidate equivalences are not proven and
+        // the reduced AIG is unsound. Discard it and continue from the original.
         Gia_ManStopP( &pOutput );
         pOutput = Gia_ManDup( pInput );
     }

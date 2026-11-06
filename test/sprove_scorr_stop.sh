@@ -1,21 +1,9 @@
 #!/usr/bin/env bash
-# Regression test for a soundness bug in "&sprove": an interrupted signal-correspondence
-# reduction must not be trusted as a proof.
-#
-# sprove_scorr_stop.aig (built from sprove_scorr_stop.v) is a sequential miter whose single
-# output P is 0 for the first 120 cycles and becomes 1 at cycle 120, so it is NOT equivalent
-# (P is SATISFIABLE). bmc3 confirms this by asserting the output in frame 120. Under the
-# shallow random simulation used by signal correspondence every flop looks like a constant-0
-# candidate, so a "&scorr" sweep that is interrupted before it converges merges them all and
-# collapses the miter to 0 ANDs.
-#
-# Before the fix, when a solver engine found the real counterexample it tripped the stop
-# callback, and &sprove reported the collapsed reduction as "UNSATISFIABLE (solved by scnew)"
-# -- a false proof, overwriting the correct SATISFIABLE. After the fix, an interrupted
-# reduction is discarded, so &sprove never reports UNSAT here.
-#
-# The trigger is a race between a solver engine and the reduction, so we run &sprove several
-# times; a single false UNSAT in any run is a failure.
+# Regression test for &sprove trusting an interrupted &scorr reduction as a proof.
+# sprove_scorr_stop.aig (from sprove_scorr_stop.v) is a non-equivalent miter: output P is 0
+# until cycle 120 (bmc3 asserts it in frame 120). When a solver engine finds the CEX it
+# trips &scorr's stop callback mid-sweep; before the fix &sprove reported the collapsed
+# reduction as "UNSATISFIABLE (solved by scnew)". The trigger is a race, so we retry below.
 
 set -eu
 

@@ -1,33 +1,10 @@
-// Reproducer for a soundness bug in "&sprove": an interrupted signal-correspondence
-// reduction is trusted as a proof.
-//
-// "&sprove" runs "&scorr" (scnew) concurrently with its solver engines, under a stop
-// callback. When a solver engine finds the real counterexample (or the first-stage
-// timeout -T fires), the callback interrupts the reduction. Its candidate equivalences
-// are then NOT yet proven inductive, but &sprove uses the reduced AIG anyway: if it has
-// 0 ANDs it declares UNSATISFIABLE -- even overwriting a correct SATISFIABLE that a
-// solver engine just found.
-//
-// This miter has a single property output P that is 0 for the first 120 cycles and
-// becomes 1 at cycle 120, so it is NOT equivalent (P is SATISFIABLE; bmc3 asserts the
-// output in frame 120). It is 40 parallel shift chains of length 120 (~4800 flops), each
-// triggered at a distinct counter value that shallow random simulation never reaches; P
-// is the OR of all chain ends. Every chain flop therefore looks like a constant-0
-// candidate, so a sweep that is interrupted before it has refined them merges them all
-// and collapses the miter to a constant 0. &sprove then reports:
-//
-//     &read sprove_scorr_stop.aig; &sprove -T 1
-//     => "... is UNSATISFIABLE (solved by scnew)."     (WRONG; the miter is SAT)
-//
-// while bmc3 proves it SATISFIABLE:
-//
-//     read_aiger sprove_scorr_stop.aig; bmc3 -F 160
-//     => "Output 0 ... was asserted in frame 120."
-//
-// Generated from this file with yosys:
-//     read_verilog -sv sprove_scorr_stop.v; hierarchy -top top
-//     proc; flatten; opt; memory; opt; techmap; opt; dffunmap; aigmap; opt_clean
-//     write_aiger -zinit sprove_scorr_stop.aig
+// Source of sprove_scorr_stop.aig, a non-equivalent sequential miter: output P is 0 until
+// cycle 120 (bmc3 asserts it in frame 120), built so shallow random simulation sees every
+// flop as a constant-0 candidate. 40 parallel shift chains, each started at a distinct
+// counter value; P is the OR of all chain ends. Generated with yosys:
+//   read_verilog -sv sprove_scorr_stop.v; hierarchy -top top
+//   proc; flatten; opt; memory; opt; techmap; opt; dffunmap; aigmap; opt_clean
+//   write_aiger -zinit sprove_scorr_stop.aig
 module top(input CLK, output P);
   reg [7:0] cnt = 0;
   always @(posedge CLK) cnt <= cnt + 1;
