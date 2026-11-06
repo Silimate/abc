@@ -22,7 +22,8 @@ echo "PASS: bmc3 shows the miter is non-equivalent (frame 120)"
 for i in 1 2 3 4 5 6 7 8; do
     out=$("$ABC" -q "&read $AIG; &sprove -T 1" 2>&1) || true
     verdict=$(echo "$out" | grep -oE "is (SATISFIABLE|UNSATISFIABLE) \(solved by [a-z-]+\)|is UNDECIDED" | tail -1)
-    echo "  run $i: ${verdict:-<no verdict>}"
+    [ -n "$verdict" ] || { echo "$out" >&2; fail "&sprove produced no verdict (run $i)"; }
+    echo "  run $i: $verdict"
     echo "$out" | grep -q "is UNSATISFIABLE" && { echo "$out" >&2; fail "&sprove falsely reported UNSATISFIABLE on a non-equivalent miter"; }
 done
 
